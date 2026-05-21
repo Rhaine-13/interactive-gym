@@ -1,0 +1,7 @@
+==================================================
+FLEXIQ SENSOR ROM CALIBRATION HISTORY LOG
+==================================================
+This file records all successfully applied range of motion (ROM) 
+calibration settings, including their underlying mathematical peaks,
+averages, safety multipliers, and timestamps.
+

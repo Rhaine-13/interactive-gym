@@ -1,402 +1,2022 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MPU-6050 Curl Counter</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0a0a0c; --card: #13131a; --card2: #1a1a24;
-    --border: rgba(255,255,255,0.07); --text: #e8e8f0; --muted: #55556a;
-    --accent: #6c63ff; --green: #2ecc71; --red: #e74c3c;
-    --amber: #f39c12; --blue: #3498db; --font: 'Courier New', monospace;
-  }
-  body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; padding:20px; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlexIQ</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--border); }
-  .logo { display:flex; align-items:center; gap:10px; }
-  .logo-icon { width:38px; height:38px; border-radius:10px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:20px; }
-  h1 { font-size:17px; font-weight:700; letter-spacing:0.06em; }
-  .sub { font-size:10px; color:var(--muted); letter-spacing:0.12em; text-transform:uppercase; margin-top:2px; }
-  .hdr-right { display:flex; align-items:center; gap:10px; }
-  .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
-  .dot.on { background:var(--green); box-shadow:0 0 8px var(--green); }
-  #status-text { font-size:11px; color:var(--muted); }
+    :root {
+      --bg: #07070c;
+      --card-bg: rgba(18, 18, 28, 0.65);
+      --card-bg-solid: #12121c;
+      --card-border: rgba(124, 77, 255, 0.12);
+      --card-border-hover: rgba(124, 77, 255, 0.25);
+      --text: #f1efff;
+      --text-muted: #8d8aa7;
+      --accent: #7c4dff;
+      --accent-rgb: 124, 77, 255;
+      --accent-glow: rgba(124, 77, 255, 0.25);
+      --accent-hover: #9b75ff;
+      --green: #00e676;
+      --green-glow: rgba(0, 230, 118, 0.25);
+      --blue: #29b6f6;
+      --blue-glow: rgba(41, 182, 246, 0.25);
+      --red: #ff5252;
+      --red-glow: rgba(255, 82, 82, 0.2);
+      --amber: #ffd740;
+      --font: 'Outfit', sans-serif;
+    }
 
-  .btn { padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--card2); color:var(--text); font-family:var(--font); font-size:11px; letter-spacing:0.08em; cursor:pointer; transition:all 0.2s; }
-  .btn:hover { border-color:var(--accent); color:var(--accent); }
-  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .btn.primary:hover { opacity:0.85; }
-  .btn.danger { border-color:rgba(231,76,60,0.4); color:var(--red); }
-  .btn.danger:hover { border-color:var(--red); background:rgba(231,76,60,0.1); }
-  .btn.success { border-color:rgba(46,204,113,0.4); color:var(--green); }
-  .btn.success:hover { border-color:var(--green); background:rgba(46,204,113,0.1); }
+    body {
+      background: radial-gradient(circle at 50% 0%, #15112c 0%, var(--bg) 70%);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
 
-  .rep-section { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px 24px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
-  .rep-left { flex:1; }
-  .rep-label { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
-  .rep-count { font-size:96px; font-weight:700; line-height:1; color:var(--accent); transition:transform 0.1s, color 0.2s; }
-  .rep-count.flash { color:var(--green); transform:scale(1.08); }
-  .rep-set { font-size:13px; color:var(--muted); margin-top:8px; }
-  .rep-right { display:flex; flex-direction:column; align-items:center; gap:14px; }
-  .phase-box { width:160px; padding:14px 10px; border-radius:12px; text-align:center; border:2px solid var(--border); transition:all 0.3s; background:var(--card2); }
-  .phase-box.up { border-color:var(--green); background:rgba(46,204,113,0.08); }
-  .phase-box.down { border-color:var(--blue); background:rgba(52,152,219,0.08); }
-  .phase-icon { font-size:30px; margin-bottom:4px; }
-  .phase-label { font-size:13px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; }
-  .phase-label.up { color:var(--green); }
-  .phase-label.down { color:var(--blue); }
-  .phase-label.rest { color:var(--muted); }
-  .set-controls { display:flex; gap:8px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--card-border);
+    }
 
-  .metrics-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
-  .metric-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
-  .metric-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
-  .metric-val { font-size:22px; font-weight:700; }
-  .c-acc { color:#6c63ff; } .c-grn { color:var(--green); } .c-amb { color:var(--amber); } .c-blu { color:var(--blue); }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:16px; }
-  .chart-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-  .chart-title { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
-  .legend { display:flex; gap:14px; font-size:10px; color:var(--muted); }
-  .ld { width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:4px; vertical-align:middle; }
-  .chart-wrap { position:relative; height:160px; }
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), #512da8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 15px var(--accent-glow);
+    }
 
-  .thresh-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
-  .thresh-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
-  .thresh-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
-  .thresh-row-inner { display:flex; align-items:center; gap:10px; }
-  input[type=range] { flex:1; }
-  .thresh-val { font-size:13px; font-weight:700; min-width:40px; color:var(--accent); }
+    h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: linear-gradient(90deg, #fff, #c5b3ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-  .history-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:16px; }
-  .history-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-  .history-title { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
-  .history-actions { display:flex; gap:8px; }
+    .sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
 
-  .workout-list { display:flex; flex-direction:column; gap:10px; max-height:320px; overflow-y:auto; }
-  .workout-item { background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
-  .workout-item-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .workout-date { font-size:11px; color:var(--accent); font-weight:700; }
-  .workout-tag { font-size:9px; background:rgba(108,99,255,0.15); color:var(--accent); border:1px solid rgba(108,99,255,0.3); border-radius:20px; padding:2px 10px; letter-spacing:0.1em; }
-  .workout-stats { display:flex; gap:16px; }
-  .wstat { font-size:11px; color:var(--muted); }
-  .wstat strong { color:var(--text); font-weight:700; }
-  .sets-inline { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .set-pill { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:20px; padding:3px 12px; font-size:10px; color:var(--muted); }
-  .set-pill span { color:var(--green); font-weight:700; }
-  .no-history { font-size:12px; color:var(--muted); padding:8px 0; }
-  .del-workout { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:2px 6px; border-radius:4px; transition:color 0.2s; }
-  .del-workout:hover { color:var(--red); }
+    .hdr-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
 
-  .cur-sets-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
-  .sets-grid { display:flex; flex-wrap:wrap; gap:8px; }
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      padding: 6px 12px;
+      border-radius: 30px;
+      font-size: 11px;
+      font-weight: 600;
+    }
 
-  .log-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
-  .log-title { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
-  #log { height:70px; overflow-y:auto; font-size:10px; color:var(--muted); line-height:1.9; }
-  #log p { margin:0; }
-  #log .ok { color:var(--green); } #log .err { color:var(--red); } #log .rep { color:var(--accent); font-weight:700; }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: all 0.3s ease;
+    }
 
-  .no-serial { display:none; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.3); border-radius:10px; padding:12px 16px; font-size:12px; color:var(--red); margin-bottom:14px; }
+    .dot.on {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+    }
 
-  @media (max-width:700px) {
-    .metrics-row { grid-template-columns:repeat(2,1fr); }
-    .rep-section { flex-direction:column; }
-    .thresh-row { grid-template-columns:1fr; }
-  }
-</style>
+    #status-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: rgba(124, 77, 255, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(124, 77, 255, 0.1);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 15px var(--accent-glow);
+    }
+
+    .btn.primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      box-shadow: 0 6px 20px rgba(124, 77, 255, 0.4);
+    }
+
+    .btn.danger {
+      border-color: rgba(255, 82, 82, 0.3);
+      color: var(--red);
+    }
+
+    .btn.danger:hover {
+      border-color: var(--red);
+      background: rgba(255, 82, 82, 0.1);
+      box-shadow: 0 4px 12px rgba(255, 82, 82, 0.15);
+    }
+
+    .btn.success {
+      border-color: rgba(0, 230, 118, 0.3);
+      color: var(--green);
+    }
+
+    .btn.success:hover {
+      border-color: var(--green);
+      background: rgba(0, 230, 118, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 230, 118, 0.15);
+    }
+
+    /* LAYOUT */
+    .gym-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .hero-lift-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    }
+
+    .hero-lift-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(124, 77, 255, 0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .lift-tracker-row {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      margin: 24px 0;
+    }
+
+    .lift-height-track {
+      width: 14px;
+      height: 210px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      position: relative;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .lift-height-fill {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 0%;
+      background: linear-gradient(to top, var(--accent), var(--green));
+      border-radius: 20px;
+      transition: height 0.08s ease-out;
+      opacity: 0.75;
+    }
+
+    .lift-height-dot {
+      position: absolute;
+      left: 50%;
+      bottom: 0%;
+      transform: translate(-50%, 50%);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid var(--accent);
+      box-shadow: 0 0 12px #fff, 0 0 24px var(--accent-glow);
+      z-index: 10;
+      transition: bottom 0.08s ease-out, border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .lift-height-dot.up {
+      border-color: var(--green);
+      box-shadow: 0 0 15px #fff, 0 0 30px var(--green-glow);
+    }
+
+    .lift-height-dot.down {
+      border-color: var(--blue);
+      box-shadow: 0 0 15px #fff, 0 0 30px var(--blue-glow);
+    }
+
+    .lift-height-label {
+      position: absolute;
+      left: 28px;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .lift-height-label.top {
+      top: 4px;
+    }
+
+    .lift-height-label.bottom {
+      bottom: 4px;
+    }
+
+    .lift-orb-container {
+      position: relative;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .lift-orb {
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      background: rgba(12, 12, 18, 0.95);
+      border: 5px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .lift-orb.up {
+      border-color: var(--green);
+      box-shadow: 0 0 35px var(--green-glow), inset 0 0 25px rgba(0, 230, 118, 0.06);
+    }
+
+    .lift-orb.down {
+      border-color: var(--blue);
+      box-shadow: 0 0 35px var(--blue-glow), inset 0 0 25px rgba(41, 182, 246, 0.06);
+    }
+
+    .lift-orb.rest {
+      border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .lift-orb.flash {
+      transform: scale(1.08);
+      border-color: var(--green);
+      background: rgba(0, 230, 118, 0.08);
+    }
+
+    .orb-glow-ring {
+      position: absolute;
+      width: 236px;
+      height: 236px;
+      border-radius: 50%;
+      border: 2px dashed rgba(124, 77, 255, 0.12);
+      z-index: 1;
+      animation: rotateRing 25s linear infinite;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .lift-orb.up~.orb-glow-ring {
+      border-color: rgba(0, 230, 118, 0.25);
+      width: 242px;
+      height: 242px;
+    }
+
+    .lift-orb.down~.orb-glow-ring {
+      border-color: rgba(41, 182, 246, 0.25);
+      width: 242px;
+      height: 242px;
+    }
+
+    @keyframes rotateRing {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .orb-emoji {
+      font-size: 40px;
+      margin-bottom: 2px;
+      transition: transform 0.2s ease;
+    }
+
+    .lift-orb.up .orb-emoji {
+      transform: translateY(-4px) scale(1.1);
+    }
+
+    .lift-orb.down .orb-emoji {
+      transform: translateY(4px) scale(0.95);
+    }
+
+    .orb-count {
+      font-size: 68px;
+      font-weight: 800;
+      line-height: 1;
+      color: #fff;
+      letter-spacing: -2px;
+      transition: all 0.15s ease;
+    }
+
+    .orb-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    /* COACHING & MOTIVATION */
+    .coaching-card {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 20px 24px;
+      margin: 16px 0 24px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      min-height: 90px;
+      justify-content: center;
+      transition: all 0.25s ease;
+    }
+
+    .coaching-card.active-up {
+      border-color: rgba(0, 230, 118, 0.2);
+      background: rgba(0, 230, 118, 0.01);
+    }
+
+    .coaching-card.active-down {
+      border-color: rgba(41, 182, 246, 0.2);
+      background: rgba(41, 182, 246, 0.01);
+    }
+
+    .coaching-card.active-rep {
+      border-color: rgba(0, 230, 118, 0.45);
+      background: rgba(0, 230, 118, 0.05);
+      transform: scale(1.01);
+    }
+
+    .coaching-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .coaching-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.4;
+      transition: all 0.2s ease;
+    }
+
+    .audio-toggle-container {
+      position: absolute;
+      right: 16px;
+      top: 14px;
+      z-index: 10;
+    }
+
+    .audio-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .audio-btn:hover {
+      color: var(--accent);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .active-set-badge {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .lift-controls-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+    }
+
+    /* SIDE CARDS */
+    .side-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+      transition: border-color 0.3s ease;
+    }
+
+    .side-card:hover {
+      border-color: var(--card-border-hover);
+    }
+
+    .card-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .gym-stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .gym-stat-box {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+      transition: all 0.25s ease;
+    }
+
+    .gym-stat-box:hover {
+      background: rgba(124, 77, 255, 0.02);
+      border-color: rgba(124, 77, 255, 0.18);
+      transform: translateY(-2px);
+    }
+
+    .stat-num {
+      font-size: 32px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    .stat-lbl {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 140px;
+      width: 100%;
+    }
+
+    .sets-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .workout-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .workout-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .workout-list::-webkit-scrollbar-thumb {
+      background: rgba(124, 77, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .workout-item {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 14px;
+      padding: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .workout-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(124, 77, 255, 0.15);
+    }
+
+    .workout-item-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .workout-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .workout-tag {
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(124, 77, 255, 0.1);
+      color: #c5b3ff;
+      border: 1px solid rgba(124, 77, 255, 0.2);
+      border-radius: 30px;
+      padding: 2px 10px;
+    }
+
+    .workout-stats {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .workout-stats strong {
+      color: #fff;
+    }
+
+    .sets-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .set-pill {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 30px;
+      padding: 3px 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .set-pill span {
+      color: var(--green);
+    }
+
+    .no-history {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 4px 0;
+    }
+
+    .del-workout {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+
+    .del-workout:hover {
+      color: var(--red);
+    }
+
+    /* ADVANCED SECTION */
+    .advanced-toggle-btn {
+      width: 100%;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      color: var(--text-muted);
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.25s ease;
+      margin-bottom: 24px;
+    }
+
+    .advanced-toggle-btn:hover {
+      color: var(--text);
+      background: rgba(124, 77, 255, 0.04);
+      border-color: rgba(124, 77, 255, 0.2);
+    }
+
+    .advanced-toggle-btn .arrow-icon {
+      transition: transform 0.3s ease;
+      font-size: 10px;
+    }
+
+    .advanced-toggle-btn.expanded .arrow-icon {
+      transform: rotate(180deg);
+    }
+
+    .advanced-drawer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-bottom: 24px;
+    }
+
+    .advanced-drawer.expanded {
+      max-height: 800px;
+    }
+
+    .advanced-content {
+      background: rgba(12, 12, 20, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      margin-top: 6px;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.6);
+    }
+
+    .thresh-card {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+
+    .thresh-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .thresh-row-inner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+      background: rgba(255, 255, 255, 0.06);
+      height: 6px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .thresh-val {
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 32px;
+      color: var(--accent);
+      text-align: right;
+    }
+
+    .dev-metrics-card {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .dev-metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .dev-metric-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .dev-metric-val {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .log-card {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .log-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    #log {
+      height: 140px;
+      overflow-y: auto;
+      font-size: 9px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-family: 'Courier New', monospace;
+    }
+
+    #log::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #log::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    #log p {
+      margin: 0;
+    }
+
+    #log .ok {
+      color: var(--green);
+    }
+
+    #log .err {
+      color: var(--red);
+    }
+
+    #log .rep {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .no-serial {
+      display: none;
+      background: rgba(255, 82, 82, 0.1);
+      border: 1px solid rgba(255, 82, 82, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--red);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    @media (max-width:992px) {
+      .gym-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .advanced-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Arcade Game Styling */
+    .game-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(7, 7, 12, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 100;
+    }
+
+    .game-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes gameShake {
+
+      0%,
+      100% {
+        transform: translate(0, 0);
+      }
+
+      10%,
+      30%,
+      50%,
+      70%,
+      90% {
+        transform: translate(-4px, -2px);
+      }
+
+      20%,
+      40%,
+      60%,
+      80% {
+        transform: translate(4px, 2px);
+      }
+    }
+
+    .shake-anim {
+      animation: gameShake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+    }
+
+    .invincible-blink {
+      animation: blink 0.15s infinite alternate;
+    }
+
+    @keyframes blink {
+      0% {
+        opacity: 0.3;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .heart-icon {
+      color: var(--red);
+      text-shadow: 0 0 8px var(--red-glow);
+      font-size: 14px;
+      display: inline-block;
+      margin-left: 2px;
+      transition: transform 0.2s ease;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="no-serial-warning" class="no-serial">
-  ⚠ Web Serial API not supported. Use <strong>Chrome</strong> or <strong>Edge</strong> (v89+).
-</div>
+  <div id="no-serial-warning" class="no-serial">
+    ⚠ Web Serial API not supported. Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> (v89+).
+  </div>
 
-<header>
-  <div class="logo">
-    <div class="logo-icon">💪</div>
+  <header>
+    <div class="logo">
+      <div>
+        <h1>FLEX</h1>
+
+      </div>
+    </div>
+    <div class="hdr-right">
+      <span class="status-pill" id="profile-status-badge"
+        style="background: rgba(0, 230, 118, 0.05); border-color: rgba(0, 230, 118, 0.2); color: var(--green); display: none;">
+        ✓ Profile Calibrated
+      </span>
+      <a class="btn" href="calibrate.html" style="text-decoration: none;">🔧 Profile Recorder</a>
+      <div class="status-pill">
+        <div class="dot" id="dot"></div>
+        <span id="status-text">Disconnected</span>
+      </div>
+      <button class="btn primary" id="connect-btn" onclick="toggleConnection()">Connect USB</button>
+    </div>
+  </header>
+
+  <div class="gym-grid">
+    <!-- LEFT HERO SECTION -->
+    <div class="hero-lift-card">
+      <div class="active-set-badge" id="set-info">Set 1 · 0 total reps</div>
+
+      <div class="lift-tracker-row">
+        <div class="lift-orb-container">
+          <div class="lift-orb rest" id="lift-orb">
+            <div class="orb-emoji" id="orb-emoji">😴</div>
+            <div class="orb-count" id="rep-count">0</div>
+            <div class="orb-label" id="lift-phase">RESTING</div>
+          </div>
+          <div class="orb-glow-ring"></div>
+        </div>
+
+        <!-- VERTICAL LIFT HEIGHT TRACKER -->
+        <div class="lift-height-track" title="Real-time arm height visualizer">
+          <div class="lift-height-fill" id="lift-height-fill"></div>
+          <div class="lift-height-dot rest" id="lift-height-dot"></div>
+          <div class="lift-height-label top">UP</div>
+          <div class="lift-height-label bottom">DOWN</div>
+        </div>
+      </div>
+
+      <!-- COACHING & MOTIVATION FEED -->
+      <div class="coaching-card" id="coaching-card">
+        <div class="audio-toggle-container" title="Toggle audio sound chime">
+          <button class="audio-btn" id="audio-toggle" onclick="toggleSound()">
+            🔊
+          </button>
+        </div>
+        <div class="coaching-label" id="coaching-label">FLEXIQ COACH</div>
+        <div class="coaching-text" id="coaching-text">Tap "Connect USB" above to calibrate your sensor and begin
+          curling!</div>
+      </div>
+
+      <div class="lift-controls-row">
+        <button class="btn" onclick="newSet()">+ Next Set</button>
+        <button class="btn success" onclick="saveWorkout()">💾 Save Workout</button>
+        <button class="btn danger" onclick="resetAll()">Reset Session</button>
+      </div>
+    </div>
+
+    <!-- RIGHT STATS SECTION -->
     <div>
-      <h1>CURL COUNTER</h1>
-      <div class="sub">ESP32 · MPU-6050 · Real-time</div>
+      <!-- FLEXIQ ARCADE GAMIFIED CARD -->
+      <div class="side-card" id="arcade-card">
+        <div class="card-hdr">
+          <span class="card-title">FlexIQ Session Arcade</span>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <div class="active-set-badge"
+              style="font-size: 10px; padding: 3px 10px; font-weight: 700; text-transform: uppercase;" id="game-badge">
+              Standby</div>
+          </div>
+        </div>
+
+        <div class="gym-stats-row" style="margin-bottom: 12px; grid-template-columns: 1fr 1fr 1.2fr;">
+          <div class="gym-stat-box" style="padding: 10px 6px;">
+            <div class="stat-num" id="game-score" style="font-size: 24px; font-weight: 800;">0</div>
+            <div class="stat-lbl" style="font-size: 8px;">Score</div>
+          </div>
+          <div class="gym-stat-box" style="padding: 10px 6px;">
+            <div class="stat-num" id="game-highscore" style="font-size: 24px; font-weight: 800; color: var(--amber);">0
+            </div>
+            <div class="stat-lbl" style="font-size: 8px;">High Score</div>
+          </div>
+          <div class="gym-stat-box"
+            style="padding: 10px 6px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div id="game-lives"
+              style="display: flex; gap: 2px; font-size: 16px; min-height: 24px; align-items: center;">
+              <span class="heart-icon">❤️</span>
+              <span class="heart-icon">❤️</span>
+              <span class="heart-icon">❤️</span>
+            </div>
+            <div class="stat-lbl" style="font-size: 8px; margin-top: 4px;">Lives Remaining</div>
+          </div>
+        </div>
+
+        <div class="chart-wrap"
+          style="height: 220px; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--card-border); background: rgba(0,0,0,0.5);">
+          <canvas id="game-canvas" width="400" height="220"
+            style="display: block; width: 100%; height: 100%; cursor: crosshair;"></canvas>
+
+          <!-- Start/Game Over Overlay -->
+          <div id="game-overlay" class="game-overlay">
+            <div id="overlay-emoji" style="font-size: 40px; margin-bottom: 6px;">💪</div>
+            <h3 id="overlay-title"
+              style="font-size: 18px; font-weight: 900; color: #fff; margin-bottom: 4px; background: linear-gradient(90deg, #fff, #c5b3ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; letter-spacing: 0.05em;">
+              Bicep Bird Arcade</h3>
+            <p id="overlay-text"
+              style="font-size: 11px; color: var(--text-muted); max-width: 280px; margin-bottom: 16px; line-height: 1.4;">
+              Curl your bicep up & down to guide the bird through the scrolling wave gates!
+            </p>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn primary" id="game-start-btn" onclick="initAndStartGame()"
+                style="padding: 8px 18px; font-size: 11px;">Play Game</button>
+              <button class="btn" id="game-demo-btn" onclick="toggleDemoMode()"
+                style="padding: 8px 18px; font-size: 11px;">Demo Mode</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hidden/Tiny elements to preserve JS DOM update compatibility -->
+        <div
+          style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; margin-top: 8px; font-size: 10px; color: var(--text-muted);">
+          <span>Completed Sets: <strong id="val-sets" style="color: #fff;">0</strong></span>
+          <span>Session Reps: <strong id="val-total" style="color: #fff;">0</strong></span>
+        </div>
+      </div>
+
+      <!-- WORKOUT HISTORY -->
+      <div class="side-card" style="margin-bottom: 12px;">
+        <div class="card-hdr">
+          <span class="card-title">Workout History Logs</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn" style="padding: 6px 12px; font-size: 10px;" onclick="exportCSV()">⬇ CSV</button>
+            <button class="btn danger" style="padding: 6px 12px; font-size: 10px;" onclick="clearAllHistory()">Clear
+              All</button>
+          </div>
+        </div>
+        <div class="workout-list" id="workout-list">
+          <span class="no-history">No saved sessions yet. Complete your first set!</span>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="hdr-right">
-    <div class="dot" id="dot"></div>
-    <span id="status-text">Disconnected</span>
-    <button class="btn primary" onclick="toggleConnection()">Connect USB</button>
-  </div>
-</header>
 
-<!-- REP COUNTER -->
-<div class="rep-section">
-  <div class="rep-left">
-    <div class="rep-label">Reps this set</div>
-    <div class="rep-count" id="rep-count">0</div>
-    <div class="rep-set" id="set-info">Set 1 · 0 total reps</div>
-    <div class="set-controls">
-      <button class="btn" onclick="newSet()">+ New Set</button>
-      <button class="btn success" onclick="saveWorkout()">💾 Save Workout</button>
-      <button class="btn danger" onclick="resetAll()">Reset</button>
+  <!-- ADVANCED DRAWER -->
+  <button class="advanced-toggle-btn" id="advanced-toggle" onclick="toggleAdvancedDrawer()">
+    <span>🔧 Advanced Calibration & Diagnostic Logs</span>
+    <span class="arrow-icon">▼</span>
+  </button>
+
+  <div class="advanced-drawer" id="advanced-drawer">
+    <div class="advanced-content">
+      <div>
+        <div class="thresh-card">
+          <div class="thresh-label">Up Threshold (Curl trigger)</div>
+          <div class="thresh-row-inner">
+            <input type="range" id="thresh-up" min="0.5" max="5" step="0.1" value="1.5" oninput="updateThresh()">
+            <span class="thresh-val" id="thresh-up-val">1.5</span>
+          </div>
+        </div>
+
+        <div class="thresh-card">
+          <div class="thresh-label">Down Threshold (Descent trigger)</div>
+          <div class="thresh-row-inner">
+            <input type="range" id="thresh-down" min="-5" max="-0.5" step="0.1" value="-1.5" oninput="updateThresh()">
+            <span class="thresh-val" id="thresh-down-val">-1.5</span>
+          </div>
+        </div>
+
+        <div class="thresh-card">
+          <div class="thresh-label">Game Speed Multiplier (Arcade Pace)</div>
+          <div class="thresh-row-inner">
+            <input type="range" id="game-speed" min="1.5" max="6.0" step="0.1" value="4.2" oninput="updateSpeed()">
+            <span class="thresh-val" id="game-speed-val">4.2</span>
+          </div>
+        </div>
+
+        <div class="dev-metrics-card">
+          <div class="thresh-label">Raw Sensor Accelerometer Stream</div>
+          <div class="dev-metrics-grid">
+            <div class="dev-metric-box">
+              <div class="dev-metric-val" id="val-ay">—</div>
+              <div class="stat-lbl" style="font-size: 8px; margin-top: 2px;">Accel Y (Curl)</div>
+            </div>
+            <div class="dev-metric-box">
+              <div class="dev-metric-val" id="val-az">—</div>
+              <div class="stat-lbl" style="font-size: 8px; margin-top: 2px;">Accel Z</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="log-card">
+        <div class="log-title">Serial Stream Stream Terminal</div>
+        <div id="log">
+          <p class="ok">// Waiting for serial connection...</p>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="rep-right">
-    <div class="phase-box rest" id="phase-box">
-      <div class="phase-icon" id="phase-icon">😴</div>
-      <div class="phase-label rest" id="phase-label">REST</div>
-    </div>
-    <div style="font-size:11px; color:var(--muted); text-align:center; max-width:140px; line-height:1.6;">
-      Hold sensor while curling. Lift = UP, Lower = DOWN.
-    </div>
-  </div>
-</div>
 
-<!-- METRICS -->
-<div class="metrics-row">
-  <div class="metric-card">
-    <div class="metric-label">Accel Y (curl axis)</div>
-    <div class="metric-val c-acc" id="val-ay">—</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Accel Z</div>
-    <div class="metric-val c-grn" id="val-az">—</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Sets today</div>
-    <div class="metric-val c-amb" id="val-sets">0</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-label">Total reps</div>
-    <div class="metric-val c-blu" id="val-total">0</div>
-  </div>
-</div>
+  <script>
+    // ── STATE ──────────────────────────────────────────────
+    let port, reader, isConnected = false, buffer = '';
+    let reps = 0, setNum = 1, totalReps = 0;
+    let sets = [];
 
-<!-- LIVE CHART -->
-<div class="chart-card">
-  <div class="chart-hdr">
-    <span class="chart-title">Acceleration Y — Curl Motion</span>
-    <div class="legend">
-      <span><span class="ld" style="background:#6c63ff"></span>Accel Y</span>
-      <span><span class="ld" style="background:#2ecc71"></span>UP thresh</span>
-      <span><span class="ld" style="background:#3498db"></span>DOWN thresh</span>
-    </div>
-  </div>
-  <div class="chart-wrap">
-    <canvas id="motion-chart" role="img" aria-label="Live curl motion chart"></canvas>
-  </div>
-</div>
+    // Load custom profile thresholds from localStorage with standard fallbacks
+    let threshUp = 1.5, threshDown = -1.5;
+    try {
+      const storedUp = localStorage.getItem('flexiq_thresh_up');
+      const storedDown = localStorage.getItem('flexiq_thresh_down');
+      if (storedUp !== null) threshUp = parseFloat(storedUp);
+      if (storedDown !== null) threshDown = parseFloat(storedDown);
+    } catch (e) { }
 
-<!-- THRESHOLDS -->
-<div class="thresh-row">
-  <div class="thresh-card">
-    <div class="thresh-label">UP threshold (curl up trigger)</div>
-    <div class="thresh-row-inner">
-      <input type="range" id="thresh-up" min="0.5" max="5" step="0.1" value="1.5" oninput="updateThresh()">
-      <span class="thresh-val" id="thresh-up-val">1.5</span>
-    </div>
-  </div>
-  <div class="thresh-card">
-    <div class="thresh-label">DOWN threshold (lower trigger)</div>
-    <div class="thresh-row-inner">
-      <input type="range" id="thresh-down" min="-5" max="-0.5" step="0.1" value="-1.5" oninput="updateThresh()">
-      <span class="thresh-val" id="thresh-down-val">-1.5</span>
-    </div>
-  </div>
-</div>
+    let phase = 'rest';
+    let cooldown = 0;
+    let soundEnabled = true;
+    let currentVisualPos = 0;
 
-<!-- CURRENT SESSION SETS -->
-<div class="cur-sets-card">
-  <div class="history-hdr">
-    <span class="history-title">Current session sets</span>
-  </div>
-  <div class="sets-grid" id="sets-grid">
-    <span class="no-history">No sets yet. Start curling!</span>
-  </div>
-</div>
+    // ── STORAGE KEY ────────────────────────────────────────
+    const STORAGE_KEY = 'curl_counter_workouts';
 
-<!-- WORKOUT HISTORY -->
-<div class="history-card">
-  <div class="history-hdr">
-    <span class="history-title">Workout history</span>
-    <div class="history-actions">
-      <button class="btn" onclick="exportCSV()">⬇ Export CSV</button>
-      <button class="btn danger" onclick="clearAllHistory()">Clear All</button>
-    </div>
-  </div>
-  <div class="workout-list" id="workout-list">
-    <span class="no-history">No saved workouts yet.</span>
-  </div>
-</div>
+    // ── LOAD HISTORY ON START ──────────────────────────────
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
 
-<!-- LOG -->
-<div class="log-card">
-  <div class="log-title">Serial Log</div>
-  <div id="log"><p class="ok">// Waiting for connection...</p></div>
-</div>
+    function saveHistory(workouts) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts)); } catch (e) { }
+    }
 
-<script>
-// ── STATE ──────────────────────────────────────────────
-let port, reader, isConnected = false, buffer = '';
-let reps = 0, setNum = 1, totalReps = 0;
-let sets = [];
-let threshUp = 1.5, threshDown = -1.5;
-let phase = 'rest';
-let cooldown = 0;
-const MAX_POINTS = 80;
-const accelData = Array(MAX_POINTS).fill(null);
+    // ── GAME STATE ─────────────────────────────────────────
+    let gameCanvas, gameCtx;
+    let gameLoopId = null;
+    let isGameRunning = false;
+    let isGameOver = false;
+    let gameScore = 0;
+    let gameHighScore = 0;
+    let gameLives = 3;
+    let isShielded = false; // Invincibility flash after hit
+    let shieldTimer = 0;
+    let demoMode = false; // Mouse-controlled mode when no sensor
+    let lastDemoY = 110;
+    let screenShake = 0; // Screen shake offset
 
-// ── STORAGE KEY ────────────────────────────────────────
-const STORAGE_KEY = 'curl_counter_workouts';
+    // Physics & Game Constants
+    const BIRD_X = 65;
+    let birdY = 110;
+    const BIRD_RADIUS = 12;
+    let pipes = [];
+    let particles = [];
+    let pipeSpeed = 4.2;
+    let pipeSpawnInterval = 72; // Frames between spawning pipes
+    let frameCount = 0;
+    let spawnCount = 0;
 
-// ── LOAD HISTORY ON START ──────────────────────────────
-function loadHistory() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch(e) { return []; }
-}
+    // High Score local storage key
+    const ARCADE_HIGHSCORE_KEY = 'flexiq_arcade_highscore';
 
-function saveHistory(workouts) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts)); } catch(e) {}
-}
+    function loadHighScore() {
+      try {
+        const hs = localStorage.getItem(ARCADE_HIGHSCORE_KEY);
+        gameHighScore = hs ? parseInt(hs, 10) : 0;
+        document.getElementById('game-highscore').textContent = gameHighScore;
+      } catch (e) { gameHighScore = 0; }
+    }
 
-// ── CHART ──────────────────────────────────────────────
-const ctx = document.getElementById('motion-chart');
-const motionChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: Array(MAX_POINTS).fill(''),
-    datasets: [
-      { data: [...accelData], borderColor:'#6c63ff', backgroundColor:'rgba(108,99,255,0.08)', borderWidth:2, fill:true, tension:0.3, pointRadius:0 },
-      { data: Array(MAX_POINTS).fill(threshUp),   borderColor:'#2ecc71', borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false, tension:0 },
-      { data: Array(MAX_POINTS).fill(threshDown), borderColor:'#3498db', borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false, tension:0 },
-    ]
-  },
-  options: {
-    responsive:true, maintainAspectRatio:false, animation:false,
-    plugins:{ legend:{ display:false } },
-    scales:{
-      x:{ display:false },
-      y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#55556a', font:{ family:'Courier New', size:9 }, maxTicksLimit:6 } }
-    },
-    elements:{ line:{ borderWidth:2 } }
-  }
-});
+    function saveHighScore() {
+      if (gameScore > gameHighScore) {
+        gameHighScore = gameScore;
+        document.getElementById('game-highscore').textContent = gameHighScore;
+        try { localStorage.setItem(ARCADE_HIGHSCORE_KEY, gameHighScore.toString()); } catch (e) { }
+      }
+    }
 
-// ── CURL DETECTION ─────────────────────────────────────
-function detectCurl(ay) {
-  if (cooldown > 0) { cooldown--; return; }
-  if (phase === 'rest' || phase === 'down') {
-    if (ay > threshUp) { phase='up'; setPhaseUI('up'); cooldown=5; }
-  } else if (phase === 'up') {
-    // Changed: trigger DOWN when AY falls back below a low positive value
-    if (ay < 0.3) { phase='down'; setPhaseUI('down'); countRep(); cooldown=8; }
-  }
-  if (ay < 0.2 && phase === 'down') { phase='rest'; setPhaseUI('rest'); }
-}
+    function playArcadeSound(type) {
+      if (!soundEnabled) return;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const playTone = (freq, duration, delay, oscType = 'sine', gainVal = 0.15) => {
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          osc.type = oscType;
+          osc.frequency.value = freq;
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+          gainNode.gain.linearRampToValueAtTime(gainVal, audioCtx.currentTime + delay + 0.02);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + delay + duration);
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + delay);
+          osc.stop(audioCtx.currentTime + delay + duration);
+        };
 
-function countRep() {
-  reps++; totalReps++;
-  const el = document.getElementById('rep-count');
-  el.textContent = reps;
-  el.classList.add('flash');
-  setTimeout(() => el.classList.remove('flash'), 300);
-  document.getElementById('val-total').textContent = totalReps;
-  updateSetInfo();
-  addLog(`Rep ${reps} counted! (Set ${setNum})`, 'rep');
-}
+        if (type === 'point') {
+          playTone(523.25, 0.1, 0, 'triangle');
+          playTone(659.25, 0.15, 0.06, 'triangle');
+          playTone(783.99, 0.25, 0.12, 'triangle');
+        } else if (type === 'hit') {
+          playTone(180, 0.3, 0, 'sawtooth', 0.25);
+          playTone(90, 0.4, 0.05, 'sawtooth', 0.2);
+        } else if (type === 'gameover') {
+          playTone(392.00, 0.25, 0, 'sawtooth');
+          playTone(349.23, 0.25, 0.2, 'sawtooth');
+          playTone(311.13, 0.3, 0.4, 'sawtooth');
+          playTone(261.63, 0.5, 0.65, 'sawtooth');
+        } else if (type === 'start') {
+          playTone(349.23, 0.1, 0, 'sine');
+          playTone(440.00, 0.1, 0.08, 'sine');
+          playTone(523.25, 0.1, 0.16, 'sine');
+          playTone(698.46, 0.3, 0.24, 'sine');
+        }
+      } catch (e) { console.warn("Audio warning: ", e); }
+    }
 
-function setPhaseUI(p) {
-  const box = document.getElementById('phase-box');
-  const icon = document.getElementById('phase-icon');
-  const lbl = document.getElementById('phase-label');
-  box.className = 'phase-box ' + p;
-  lbl.className = 'phase-label ' + p;
-  if (p==='up')   { icon.textContent='⬆️'; lbl.textContent='CURL UP'; }
-  if (p==='down') { icon.textContent='⬇️'; lbl.textContent='LOWER'; }
-  if (p==='rest') { icon.textContent='😴'; lbl.textContent='REST'; }
-}
+    function createThrustParticle(x, y) {
+      particles.push({
+        x: x - 10,
+        y: y + (Math.random() - 0.5) * 8,
+        vx: -1.5 - Math.random() * 1.5,
+        vy: (Math.random() - 0.5) * 1,
+        life: 1.0,
+        decay: 0.03 + Math.random() * 0.03,
+        size: 3 + Math.random() * 4,
+        color: phase === 'up' ? '#00e676' : (phase === 'down' ? '#29b6f6' : '#7c4dff')
+      });
+    }
 
-function updateSetInfo() {
-  document.getElementById('set-info').textContent = `Set ${setNum} · ${totalReps} total rep${totalReps!==1?'s':''}`;
-}
+    function createHitParticles(x, y) {
+      for (let i = 0; i < 20; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 5;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1.0,
+          decay: 0.04 + Math.random() * 0.04,
+          size: 2 + Math.random() * 5,
+          color: Math.random() > 0.5 ? '#ff5252' : '#ffd740'
+        });
+      }
+    }
 
-function newSet() {
-  if (reps > 0) {
-    sets.push({ set: setNum, reps });
-    renderCurrentSets();
-  }
-  setNum++; reps=0;
-  document.getElementById('rep-count').textContent='0';
-  document.getElementById('val-sets').textContent=sets.length;
-  updateSetInfo();
-  phase='rest'; setPhaseUI('rest');
-  addLog(`Set ${setNum} started.`, 'ok');
-}
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= p.decay;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
 
-function resetAll() {
-  reps=0; totalReps=0; setNum=1; sets=[];
-  document.getElementById('rep-count').textContent='0';
-  document.getElementById('val-total').textContent='0';
-  document.getElementById('val-sets').textContent='0';
-  updateSetInfo(); phase='rest'; setPhaseUI('rest');
-  renderCurrentSets();
-  addLog('Session reset.', 'ok');
-}
+    function drawParticles(ctx) {
+      particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
 
-function renderCurrentSets() {
-  const grid = document.getElementById('sets-grid');
-  if (sets.length===0) { grid.innerHTML='<span class="no-history">No sets yet. Start curling!</span>'; return; }
-  grid.innerHTML = sets.map(s => `<div class="set-pill">Set ${s.set} <span>${s.reps} reps</span></div>`).join('');
-}
+    function spawnPipe() {
+      const isHigh = spawnCount % 2 === 0;
+      spawnCount++;
+      const gapHeight = 70;
+      let gapCenterY;
 
-// ── SAVE WORKOUT ───────────────────────────────────────
-function saveWorkout() {
-  const activeSets = [...sets];
-  if (reps > 0) activeSets.push({ set: setNum, reps });
-  if (activeSets.length === 0) { addLog('Nothing to save — do at least one rep!', 'err'); return; }
+      if (isHigh) {
+        gapCenterY = 55;
+      } else {
+        gapCenterY = 165;
+      }
 
-  const totalR = activeSets.reduce((a, s) => a + s.reps, 0);
-  const workout = {
-    id: Date.now(),
-    date: new Date().toLocaleString(),
-    totalSets: activeSets.length,
-    totalReps: totalR,
-    sets: activeSets,
-    threshUp, threshDown
-  };
+      const width = 36;
 
-  const history = loadHistory();
-  history.unshift(workout); // newest first
-  saveHistory(history);
-  renderHistory();
-  addLog(`Workout saved! ${activeSets.length} sets, ${totalR} reps.`, 'ok');
-}
+      pipes.push({
+        x: gameCanvas.width + 10,
+        width: width,
+        topHeight: gapCenterY - gapHeight / 2,
+        bottomHeight: gameCanvas.height - (gapCenterY + gapHeight / 2),
+        gapCenterY: gapCenterY,
+        passed: false,
+        isHigh: isHigh
+      });
+    }
 
-// ── DELETE WORKOUT ─────────────────────────────────────
-function deleteWorkout(id) {
-  const history = loadHistory().filter(w => w.id !== id);
-  saveHistory(history);
-  renderHistory();
-}
+    function gameTick() {
+      if (!isGameRunning) return;
 
-// ── CLEAR ALL HISTORY ──────────────────────────────────
-function clearAllHistory() {
-  if (!confirm('Delete all saved workout history?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  renderHistory();
-  addLog('All history cleared.', 'err');
-}
+      frameCount++;
 
-// ── RENDER HISTORY ─────────────────────────────────────
-function renderHistory() {
-  const list = document.getElementById('workout-list');
-  const history = loadHistory();
-  if (history.length===0) { list.innerHTML='<span class="no-history">No saved workouts yet.</span>'; return; }
+      let targetY;
+      if (demoMode) {
+        targetY = lastDemoY;
+      } else {
+        targetY = gameCanvas.height - (currentVisualPos / 100) * gameCanvas.height;
+      }
+      birdY += (targetY - birdY) * 0.18;
+      birdY = Math.min(Math.max(birdY, BIRD_RADIUS), gameCanvas.height - BIRD_RADIUS);
 
-  list.innerHTML = history.map(w => `
+      if (frameCount % pipeSpawnInterval === 0) {
+        spawnPipe();
+      }
+
+      if (screenShake > 0) {
+        screenShake *= 0.85;
+        if (screenShake < 0.2) screenShake = 0;
+      }
+
+      if (isShielded) {
+        shieldTimer--;
+        if (shieldTimer <= 0) {
+          isShielded = false;
+        }
+      }
+
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        const pipe = pipes[i];
+        pipe.x -= pipeSpeed;
+
+        if (!isShielded && !isGameOver) {
+          const hitTop = (BIRD_X + BIRD_RADIUS > pipe.x && BIRD_X - BIRD_RADIUS < pipe.x + pipe.width && birdY - BIRD_RADIUS < pipe.topHeight);
+          const hitBottom = (BIRD_X + BIRD_RADIUS > pipe.x && BIRD_X - BIRD_RADIUS < pipe.x + pipe.width && birdY + BIRD_RADIUS > gameCanvas.height - pipe.bottomHeight);
+
+          if (hitTop || hitBottom) {
+            triggerDamage(pipe.x + pipe.width / 2);
+          }
+        }
+
+        if (!pipe.passed && pipe.x + pipe.width < BIRD_X) {
+          pipe.passed = true;
+          gameScore++;
+          document.getElementById('game-score').textContent = gameScore;
+          saveHighScore();
+          playArcadeSound('point');
+
+          const textEl = document.getElementById('coaching-text');
+
+          // Only count physical workout reps for the "CURL UP" obstacle (concentric phase)
+          if (pipe.isHigh) {
+            countRep();
+          } else {
+            // Provide eccentric descent guidance when clearing the low gate
+            textEl.textContent = `⭐ Descent Gate Cleared! Score: ${gameScore}! Good extension!`;
+            // Flash coach card in a light blue shade for descent rather than rep green
+            const cardEl = document.getElementById('coaching-card');
+            const labelEl = document.getElementById('coaching-label');
+            cardEl.className = 'coaching-card active-down';
+            labelEl.textContent = "DESCENT CLEARED";
+            setTimeout(() => {
+              cardEl.className = 'coaching-card';
+              if (isGameRunning) {
+                labelEl.textContent = "FLEXIQ COACH";
+                textEl.textContent = "Keep navigating the scrolling gates!";
+              }
+            }, 1200);
+          }
+        }
+
+        if (pipe.x + pipe.width < -10) {
+          pipes.splice(i, 1);
+        }
+      }
+
+      if (frameCount % 2 === 0) {
+        createThrustParticle(BIRD_X, birdY);
+      }
+
+      updateParticles();
+      drawGame();
+
+      gameLoopId = requestAnimationFrame(gameTick);
+    }
+
+    function drawGame() {
+      gameCtx.save();
+      if (screenShake > 0) {
+        const shakeX = (Math.random() - 0.5) * screenShake;
+        const shakeY = (Math.random() - 0.5) * screenShake;
+        gameCtx.translate(shakeX, shakeY);
+      }
+
+      gameCtx.fillStyle = '#07070c';
+      gameCtx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+      gameCtx.strokeStyle = 'rgba(124, 77, 255, 0.05)';
+      gameCtx.lineWidth = 1;
+      const gridSize = 20;
+      for (let x = 0; x < gameCanvas.width; x += gridSize) {
+        gameCtx.beginPath();
+        gameCtx.moveTo(x, 0);
+        gameCtx.lineTo(x, gameCanvas.height);
+        gameCtx.stroke();
+      }
+      for (let y = 0; y < gameCanvas.height; y += gridSize) {
+        gameCtx.beginPath();
+        gameCtx.moveTo(0, y);
+        gameCtx.lineTo(gameCanvas.width, y);
+        gameCtx.stroke();
+      }
+
+      pipes.forEach(pipe => {
+        const pipeGrad = gameCtx.createLinearGradient(pipe.x, 0, pipe.x + pipe.width, 0);
+        if (pipe.isHigh) {
+          pipeGrad.addColorStop(0, 'rgba(124, 77, 255, 0.35)');
+          pipeGrad.addColorStop(0.5, 'rgba(155, 117, 255, 0.2)');
+          pipeGrad.addColorStop(1, 'rgba(124, 77, 255, 0.35)');
+          gameCtx.fillStyle = pipeGrad;
+          gameCtx.strokeStyle = '#7c4dff';
+        } else {
+          pipeGrad.addColorStop(0, 'rgba(41, 182, 246, 0.35)');
+          pipeGrad.addColorStop(0.5, 'rgba(41, 182, 246, 0.2)');
+          pipeGrad.addColorStop(1, 'rgba(41, 182, 246, 0.35)');
+          gameCtx.fillStyle = pipeGrad;
+          gameCtx.strokeStyle = '#29b6f6';
+        }
+
+        gameCtx.lineWidth = 1.5;
+
+        gameCtx.beginPath();
+        gameCtx.rect(pipe.x, 0, pipe.width, pipe.topHeight);
+        gameCtx.fill();
+        gameCtx.stroke();
+
+        gameCtx.fillStyle = pipe.isHigh ? '#7c4dff' : '#29b6f6';
+        gameCtx.fillRect(pipe.x - 2, pipe.topHeight - 6, pipe.width + 4, 6);
+
+        gameCtx.fillStyle = pipeGrad;
+        gameCtx.beginPath();
+        gameCtx.rect(pipe.x, gameCanvas.height - pipe.bottomHeight, pipe.width, pipe.bottomHeight);
+        gameCtx.fill();
+        gameCtx.stroke();
+
+        gameCtx.fillStyle = pipe.isHigh ? '#7c4dff' : '#29b6f6';
+        gameCtx.fillRect(pipe.x - 2, gameCanvas.height - pipe.bottomHeight, pipe.width + 4, 6);
+
+        gameCtx.fillStyle = pipe.isHigh ? '#00e676' : '#29b6f6';
+        gameCtx.font = '10px Outfit';
+        gameCtx.textAlign = 'center';
+        gameCtx.textBaseline = 'middle';
+
+        const arrowStr = pipe.isHigh ? '▲ CURL UP' : '▼ LOWER';
+        gameCtx.fillText(arrowStr, pipe.x + pipe.width / 2, pipe.gapCenterY);
+      });
+
+      drawParticles(gameCtx);
+
+      gameCtx.save();
+      if (isShielded) {
+        gameCtx.globalAlpha = Math.floor(frameCount / 4) % 2 === 0 ? 0.3 : 0.8;
+      }
+
+      let birdGlowColor = '#7c4dff';
+      if (phase === 'up') birdGlowColor = '#00e676';
+      if (phase === 'down') birdGlowColor = '#29b6f6';
+
+      gameCtx.shadowBlur = 15;
+      gameCtx.shadowColor = birdGlowColor;
+
+      gameCtx.font = '22px Outfit';
+      gameCtx.textAlign = 'center';
+      gameCtx.textBaseline = 'middle';
+
+      let playerEmoji = '💪';
+      if (isGameOver) playerEmoji = '💀';
+      else if (phase === 'up') playerEmoji = '⚡';
+      else if (phase === 'down') playerEmoji = '🔥';
+      else if (phase === 'rest') playerEmoji = '😴';
+
+      gameCtx.fillText(playerEmoji, BIRD_X, birdY);
+      gameCtx.restore();
+
+      gameCtx.restore();
+    }
+
+    function triggerDamage(hitX) {
+      isShielded = true;
+      shieldTimer = 110;
+      gameLives--;
+      screenShake = 15;
+
+      createHitParticles(BIRD_X, birdY);
+      playArcadeSound('hit');
+      renderLivesUI();
+
+      addLog(`Obstacle collision! Lives remaining: ${gameLives}`, 'err');
+
+      if (gameLives <= 0) {
+        gameOver();
+      }
+    }
+
+    function renderLivesUI() {
+      const livesEl = document.getElementById('game-lives');
+      if (!livesEl) return;
+
+      let heartsHTML = '';
+      for (let i = 0; i < 3; i++) {
+        if (i < gameLives) {
+          heartsHTML += `<span class="heart-icon">❤️</span>`;
+        } else {
+          heartsHTML += `<span class="heart-icon" style="filter: grayscale(1) opacity(0.35);">❤️</span>`;
+        }
+      }
+      livesEl.innerHTML = heartsHTML;
+    }
+
+    function initAndStartGame() {
+      if (!gameCanvas) {
+        gameCanvas = document.getElementById('game-canvas');
+        gameCtx = gameCanvas.getContext('2d');
+
+        gameCanvas.addEventListener('mousemove', (e) => {
+          const rect = gameCanvas.getBoundingClientRect();
+          const relativeY = e.clientY - rect.top;
+          lastDemoY = (relativeY / rect.height) * gameCanvas.height;
+        });
+      }
+
+      isGameOver = false;
+      gameScore = 0;
+      gameLives = 3;
+      isShielded = false;
+      shieldTimer = 0;
+      pipes = [];
+      particles = [];
+      frameCount = 0;
+      spawnCount = 0;
+
+      document.getElementById('game-score').textContent = '0';
+      renderLivesUI();
+
+      document.getElementById('game-overlay').classList.add('hidden');
+      document.getElementById('game-badge').textContent = 'ACTIVE';
+      document.getElementById('game-badge').style.background = 'rgba(0, 230, 118, 0.15)';
+      document.getElementById('game-badge').style.color = 'var(--green)';
+      document.getElementById('game-badge').style.borderColor = 'rgba(0, 230, 118, 0.3)';
+
+      isGameRunning = true;
+      playArcadeSound('start');
+      addLog('Bicep Bird Arcade started! Control it with your curls.', 'ok');
+
+      if (gameLoopId) cancelAnimationFrame(gameLoopId);
+      gameTick();
+    }
+
+    function gameOver() {
+      isGameRunning = false;
+      isGameOver = true;
+      if (gameLoopId) cancelAnimationFrame(gameLoopId);
+
+      playArcadeSound('gameover');
+
+      document.getElementById('game-overlay').classList.remove('hidden');
+      document.getElementById('overlay-emoji').textContent = '💀';
+      document.getElementById('overlay-title').textContent = 'GAME OVER';
+      document.getElementById('overlay-title').style.background = 'linear-gradient(90deg, #ff5252, #ffd740)';
+      document.getElementById('overlay-text').innerHTML = `
+        You survived through <strong style="color:#fff;">${gameScore}</strong> gates!<br>
+        Your High Score: <strong style="color:var(--amber);">${gameHighScore}</strong><br>
+        <span style="font-size: 10px; display:inline-block; margin-top: 6px; color: var(--accent);">Perform a bicep curl or click below to retry!</span>
+      `;
+
+      document.getElementById('game-start-btn').textContent = 'Play Again';
+
+      document.getElementById('game-badge').textContent = 'GAME OVER';
+      document.getElementById('game-badge').style.background = 'rgba(255, 82, 82, 0.15)';
+      document.getElementById('game-badge').style.color = 'var(--red)';
+      document.getElementById('game-badge').style.borderColor = 'rgba(255, 82, 82, 0.3)';
+
+      addLog(`Game Over. Survived ${gameScore} gates.`, 'err');
+    }
+
+    function toggleDemoMode() {
+      demoMode = !demoMode;
+      const demoBtn = document.getElementById('game-demo-btn');
+      if (demoMode) {
+        demoBtn.textContent = 'Demo: Active';
+        demoBtn.style.borderColor = 'var(--green)';
+        demoBtn.style.color = 'var(--green)';
+        addLog('Mouse Demo Control Mode enabled. Move mouse in screen to fly!', 'ok');
+      } else {
+        demoBtn.textContent = 'Demo Mode';
+        demoBtn.style.borderColor = '';
+        demoBtn.style.color = '';
+        addLog('Sensor Control Mode active. Use physical curls!', 'ok');
+      }
+    }
+
+    // ── DYNAMIC COACHING FEED ENGINE ───────────────────────
+    const COACHING_PHASES = {
+      rest: [
+        "LOWER LEVEL REACHED · Lift all the way UP to start!",
+        "Arm fully lowered. Squeeze and lift up!",
+        "Ready to curl! Drive it to the UPPER level!",
+        "Position: LOWER LEVEL. Pull hard!",
+        "Keep elbows locked, drive it UP!"
+      ],
+      up: [
+        "UPPER LEVEL REACHED · Lower all the way DOWN to count!",
+        "Peak contraction reached! Control the descent!",
+        "Excellent bicep squeeze! Resist gravity downwards!",
+        "TOP LEVEL REACHED · Smoothly lower to the bottom!",
+        "Bicep active! Take it down to finish rep!"
+      ],
+      down: [
+        "LOWERING · Keep going all the way to the bottom!",
+        "Control the stretch! Almost at the lower level!",
+        "Resist the weight... down, down, down!",
+        "Keep bicep tension as you reach the bottom!",
+        "Steady descent! Lower fully to register count!"
+      ]
+    };
+
+    const REP_MILESTONES = {
+      1: "First rep down! Lock in that posture.",
+      5: "5 reps! Halfway there, keep the pump!",
+      8: "8 reps! Excellent range of motion!",
+      10: "10 reps! Beast mode! Push your limits!",
+      12: "12 reps! Iron absolute warrior! Build that muscle!",
+      15: "15 reps! Unbelievable endurance! Stay safe!"
+    };
+
+    const SUCCESS_PHRASES = [
+      "BOOM! Epic rep counted!",
+      "Form is perfect! Keep it up!",
+      "Incredible rep! Lock and load!",
+      "Magnificent form! Next rep!",
+      "Rep counted! Bicep pump active!"
+    ];
+
+    function getRandomPhrase(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function updateCoaching(phase, eventType, count = 0) {
+      const textEl = document.getElementById('coaching-text');
+      const labelEl = document.getElementById('coaching-label');
+      const cardEl = document.getElementById('coaching-card');
+
+      cardEl.className = 'coaching-card';
+
+      if (eventType === 'rep') {
+        cardEl.classList.add('active-rep');
+        labelEl.textContent = isGameRunning ? "GATE CLEARED!" : "REP COMPLETED!";
+
+        if (isGameRunning) {
+          if (REP_MILESTONES[count]) {
+            textEl.textContent = `⭐ Gate ${count} Cleared! ${REP_MILESTONES[count]}`;
+          } else {
+            textEl.textContent = `⭐ Gate Cleared! Score: ${count}! ${getRandomPhrase(SUCCESS_PHRASES)}`;
+          }
+        } else {
+          if (REP_MILESTONES[count]) {
+            textEl.textContent = `🎉 ${REP_MILESTONES[count]}`;
+          } else {
+            textEl.textContent = `💪 ${getRandomPhrase(SUCCESS_PHRASES)}`;
+          }
+        }
+
+        setTimeout(() => {
+          cardEl.className = 'coaching-card';
+          if (isGameRunning) {
+            labelEl.textContent = "FLEXIQ COACH";
+            textEl.textContent = "Keep navigating the scrolling gates!";
+          } else if (port && isConnected) {
+            if (phase === 'up') {
+              cardEl.classList.add('active-up');
+              labelEl.textContent = "UPPER REACHED";
+            } else if (phase === 'down') {
+              cardEl.classList.add('active-down');
+              labelEl.textContent = "LOWERING";
+            } else {
+              labelEl.textContent = "LOWER LEVEL";
+            }
+          } else {
+            labelEl.textContent = "FLEXIQ COACH";
+            textEl.textContent = "Tap \"Connect USB\" above to calibrate your sensor and begin curling!";
+          }
+        }, 1200);
+        return;
+      }
+
+      if (phase === 'up') {
+        cardEl.classList.add('active-up');
+        labelEl.textContent = "UPPER REACHED";
+        textEl.textContent = getRandomPhrase(COACHING_PHASES.up);
+      } else if (phase === 'down') {
+        cardEl.classList.add('active-down');
+        labelEl.textContent = "LOWERING";
+        textEl.textContent = getRandomPhrase(COACHING_PHASES.down);
+      } else if (phase === 'rest') {
+        labelEl.textContent = "LOWER LEVEL";
+        if (!isConnected) {
+          textEl.textContent = "Tap \"Connect USB\" above to calibrate your sensor and begin curling!";
+        } else {
+          textEl.textContent = getRandomPhrase(COACHING_PHASES.rest);
+        }
+      }
+    }
+
+    // ── PLAY TACTILE SYNTH SOUND ───────────────────────────
+    function playRepSound() {
+      if (!soundEnabled) return;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        const playTone = (freq, duration, delay) => {
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+          gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + delay + 0.02);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + delay + duration);
+
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          osc.start(audioCtx.currentTime + delay);
+          osc.stop(audioCtx.currentTime + delay + duration);
+        };
+
+        playTone(587.33, 0.15, 0); // D5
+        playTone(880.00, 0.25, 0.07); // A5
+      } catch (e) {
+        console.warn("Audio error: ", e);
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('audio-toggle');
+      btn.textContent = soundEnabled ? '🔊' : '🔇';
+      addLog(soundEnabled ? 'Synthesizer audio enabled.' : 'Synthesizer audio muted.', 'ok');
+    }
+
+    // ── ADVANCED DRAWER COLLAPSIBLE ────────────────────────
+    function toggleAdvancedDrawer() {
+      const btn = document.getElementById('advanced-toggle');
+      const drawer = document.getElementById('advanced-drawer');
+      const isExpanded = btn.classList.toggle('expanded');
+      drawer.classList.toggle('expanded');
+
+      if (isExpanded) {
+        btn.querySelector('.arrow-icon').textContent = '▲';
+      } else {
+        btn.querySelector('.arrow-icon').textContent = '▼';
+      }
+    }
+
+    // ── CURL DETECTION & ANTI-CHEAT ROM STATE ──────────────
+    let hasReachedTop = false;
+
+    function detectCurl(ay) {
+      if (cooldown > 0) { cooldown--; return; }
+
+      // Hands-free retry auto-trigger: if game is over and user does a full bicep curl past threshUp
+      if (isGameOver && ay > threshUp) {
+        initAndStartGame();
+        cooldown = 15;
+        return;
+      }
+
+      if (!hasReachedTop) {
+        // If not at top, we require user to reach UPPER level (ay > threshUp) to begin rep
+        if (phase !== 'rest' && ay < 0.3) {
+          phase = 'rest';
+          setPhaseUI('rest');
+        }
+
+        if (ay > threshUp) {
+          hasReachedTop = true;
+          phase = 'up';
+          setPhaseUI('up');
+          cooldown = 8; // stabilize top peak
+        }
+      } else {
+        // Top reached. We are in bicep curl action, waiting for user to lower fully
+        if (phase === 'up') {
+          // Transition to descent as acceleration drops
+          if (ay < 0.7) {
+            phase = 'down';
+            setPhaseUI('down');
+            cooldown = 4;
+          }
+        } else if (phase === 'down') {
+          // Rep is ONLY counted when arm returns fully to the lower level (ay < 0.3)
+          if (ay < 0.3) {
+            if (!isGameRunning) {
+              countRep();
+            }
+            hasReachedTop = false; // Reset state for next rep
+            phase = 'rest';
+            setPhaseUI('rest');
+            cooldown = 12; // stabilize bottom landing to prevent double triggers
+          }
+        }
+      }
+    }
+
+    function countRep() {
+      reps++; totalReps++;
+      const countEl = document.getElementById('rep-count');
+      const orb = document.getElementById('lift-orb');
+
+      countEl.textContent = reps;
+      orb.classList.add('flash');
+      setTimeout(() => orb.classList.remove('flash'), 300);
+
+      document.getElementById('val-total').textContent = totalReps;
+      updateSetInfo();
+      addLog(`Rep ${reps} counted! (Set ${setNum})`, 'rep');
+
+      if (!isGameRunning) {
+        playRepSound();
+      }
+      updateCoaching(phase, 'rep', reps);
+    }
+
+    function setPhaseUI(p) {
+      const orb = document.getElementById('lift-orb');
+      const emoji = document.getElementById('orb-emoji');
+      const lbl = document.getElementById('lift-phase');
+
+      orb.className = 'lift-orb ' + p;
+
+      if (p === 'up') {
+        emoji.textContent = '⚡';
+        lbl.textContent = 'CURLING UP';
+        updateCoaching('up', 'phase');
+      }
+      if (p === 'down') {
+        emoji.textContent = '🔥';
+        lbl.textContent = 'LOWERING';
+        updateCoaching('down', 'phase');
+      }
+      if (p === 'rest') {
+        emoji.textContent = '😴';
+        lbl.textContent = 'RESTING';
+        updateCoaching('rest', 'phase');
+      }
+    }
+
+    function updateSetInfo() {
+      document.getElementById('set-info').textContent = `Set ${setNum} · ${totalReps} total rep${totalReps !== 1 ? 's' : ''}`;
+    }
+
+    function newSet() {
+      if (reps > 0) {
+        sets.push({ set: setNum, reps });
+        renderCurrentSets();
+      }
+      setNum++; reps = 0;
+      document.getElementById('rep-count').textContent = '0';
+      document.getElementById('val-sets').textContent = sets.length;
+      updateSetInfo();
+      phase = 'rest'; setPhaseUI('rest');
+      addLog(`Set ${setNum} started.`, 'ok');
+    }
+
+    function resetAll() {
+      reps = 0; totalReps = 0; setNum = 1; sets = [];
+      document.getElementById('rep-count').textContent = '0';
+      document.getElementById('val-total').textContent = '0';
+      document.getElementById('val-sets').textContent = '0';
+      updateSetInfo(); phase = 'rest'; setPhaseUI('rest');
+      renderCurrentSets();
+      addLog('Session reset.', 'ok');
+    }
+
+    function renderCurrentSets() {
+      const grid = document.getElementById('sets-grid');
+      if (sets.length === 0) { grid.innerHTML = '<span class="no-history">No sets yet. Start curling!</span>'; return; }
+      grid.innerHTML = sets.map(s => `<div class="set-pill">Set ${s.set} <span>${s.reps} reps</span></div>`).join('');
+    }
+
+    // ── SAVE WORKOUT ───────────────────────────────────────
+    function saveWorkout() {
+      const activeSets = [...sets];
+      if (reps > 0) activeSets.push({ set: setNum, reps });
+      if (activeSets.length === 0) { addLog('Nothing to save — do at least one rep!', 'err'); return; }
+
+      const totalR = activeSets.reduce((a, s) => a + s.reps, 0);
+      const workout = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        totalSets: activeSets.length,
+        totalReps: totalR,
+        sets: activeSets,
+        threshUp, threshDown
+      };
+
+      const history = loadHistory();
+      history.unshift(workout);
+      saveHistory(history);
+      renderHistory();
+      addLog(`Workout saved! ${activeSets.length} sets, ${totalR} reps.`, 'ok');
+    }
+
+    // ── DELETE WORKOUT ─────────────────────────────────────
+    function deleteWorkout(id) {
+      const history = loadHistory().filter(w => w.id !== id);
+      saveHistory(history);
+      renderHistory();
+    }
+
+    // ── CLEAR ALL HISTORY ──────────────────────────────────
+    function clearAllHistory() {
+      if (!confirm('Delete all saved workout history?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      renderHistory();
+      addLog('All history cleared.', 'err');
+    }
+
+    // ── RENDER HISTORY ─────────────────────────────────────
+    function renderHistory() {
+      const list = document.getElementById('workout-list');
+      const history = loadHistory();
+      if (history.length === 0) { list.innerHTML = '<span class="no-history">No saved workouts yet.</span>'; return; }
+
+      list.innerHTML = history.map(w => `
     <div class="workout-item">
       <div class="workout-item-hdr">
         <span class="workout-date">${w.date}</span>
@@ -407,127 +2027,208 @@ function renderHistory() {
       </div>
       <div class="workout-stats">
         <span class="wstat">Sets: <strong>${w.totalSets}</strong></span>
-        <span class="wstat">Total reps: <strong>${w.totalReps}</strong></span>
-        <span class="wstat">Avg/set: <strong>${(w.totalReps/w.totalSets).toFixed(1)}</strong></span>
+        <span class="wstat" style="margin-left: 10px;">Total reps: <strong>${w.totalReps}</strong></span>
+        <span class="wstat" style="margin-left: 10px;">Avg/set: <strong>${(w.totalReps / w.totalSets).toFixed(1)}</strong></span>
       </div>
       <div class="sets-inline">
         ${w.sets.map(s => `<div class="set-pill">Set ${s.set} <span>${s.reps}</span></div>`).join('')}
       </div>
     </div>
   `).join('');
-}
+    }
 
-// ── EXPORT CSV ─────────────────────────────────────────
-function exportCSV() {
-  const history = loadHistory();
-  if (history.length===0) { addLog('No history to export.', 'err'); return; }
+    // ── EXPORT CSV ─────────────────────────────────────────
+    function exportCSV() {
+      const history = loadHistory();
+      if (history.length === 0) { addLog('No history to export.', 'err'); return; }
 
-  let csv = 'Date,Set,Reps,Total Sets,Total Reps,Avg Reps/Set,ThreshUp,ThreshDown\n';
-  history.forEach(w => {
-    w.sets.forEach(s => {
-      csv += `"${w.date}",${s.set},${s.reps},${w.totalSets},${w.totalReps},${(w.totalReps/w.totalSets).toFixed(2)},${w.threshUp},${w.threshDown}\n`;
-    });
-  });
+      let csv = 'Date,Set,Reps,Total Sets,Total Reps,Avg Reps/Set,ThreshUp,ThreshDown\n';
+      history.forEach(w => {
+        w.sets.forEach(s => {
+          csv += `"${w.date}",${s.set},${s.reps},${w.totalSets},${w.totalReps},${(w.totalReps / w.totalSets).toFixed(2)},${w.threshUp},${w.threshDown}\n`;
+        });
+      });
 
-  const blob = new Blob([csv], { type:'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'curl_workouts_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-  addLog('CSV exported!', 'ok');
-}
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'curl_workouts_' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      addLog('CSV exported!', 'ok');
+    }
 
-// ── THRESHOLDS ─────────────────────────────────────────
-function updateThresh() {
-  threshUp   = parseFloat(document.getElementById('thresh-up').value);
-  threshDown = parseFloat(document.getElementById('thresh-down').value);
-  document.getElementById('thresh-up-val').textContent   = threshUp.toFixed(1);
-  document.getElementById('thresh-down-val').textContent = threshDown.toFixed(1);
-  motionChart.data.datasets[1].data = Array(MAX_POINTS).fill(threshUp);
-  motionChart.data.datasets[2].data = Array(MAX_POINTS).fill(threshDown);
-  motionChart.update('none');
-}
+    // ── THRESHOLDS ─────────────────────────────────────────
+    function updateThresh() {
+      threshUp = parseFloat(document.getElementById('thresh-up').value);
+      threshDown = parseFloat(document.getElementById('thresh-down').value);
+      document.getElementById('thresh-up-val').textContent = threshUp.toFixed(1);
+      document.getElementById('thresh-down-val').textContent = threshDown.toFixed(1);
+      try {
+        localStorage.setItem('flexiq_thresh_up', threshUp.toString());
+        localStorage.setItem('flexiq_thresh_down', threshDown.toString());
+      } catch (e) { }
+      updateProfileStatusBadge();
+    }
 
-// ── DATA UPDATE ────────────────────────────────────────
-function updateUI(d) {
-  const ay = d.ay;
-  document.getElementById('val-ay').textContent = ay.toFixed(3);
-  document.getElementById('val-az').textContent = d.az.toFixed(3);
-  accelData.push(ay);
-  if (accelData.length > MAX_POINTS) accelData.shift();
-  motionChart.data.datasets[0].data = [...accelData];
-  motionChart.data.labels.push('');
-  if (motionChart.data.labels.length > MAX_POINTS) motionChart.data.labels.shift();
-  motionChart.update('none');
-  detectCurl(ay);
-}
+    function updateSpeed() {
+      const speedVal = parseFloat(document.getElementById('game-speed').value);
+      pipeSpeed = speedVal;
+      pipeSpawnInterval = Math.round(300 / speedVal);
+      document.getElementById('game-speed-val').textContent = speedVal.toFixed(1);
+      try {
+        localStorage.setItem('flexiq_game_speed', speedVal.toString());
+      } catch (e) { }
+      addLog(`Game speed set to ${speedVal.toFixed(1)} (Spawn interval: ${pipeSpawnInterval} frames)`, 'ok');
+    }
 
-// ── SERIAL ─────────────────────────────────────────────
-function addLog(msg, cls='') {
-  const log = document.getElementById('log');
-  const p = document.createElement('p');
-  if (cls) p.className = cls;
-  p.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-  log.appendChild(p);
-  if (log.children.length > 60) log.removeChild(log.firstChild);
-  log.scrollTop = log.scrollHeight;
-}
-
-function setStatus(connected, text) {
-  isConnected = connected;
-  document.getElementById('dot').className = 'dot' + (connected ? ' on' : '');
-  document.getElementById('status-text').textContent = text;
-}
-
-async function toggleConnection() { isConnected ? await disconnect() : await connect(); }
-
-async function connect() {
-  if (!('serial' in navigator)) { document.getElementById('no-serial-warning').style.display='block'; return; }
-  try {
-    port = await navigator.serial.requestPort();
-    await port.open({ baudRate:115200 });
-    setStatus(true, 'Connected · 115200 baud');
-    addLog('Connected. Ready to count reps!', 'ok');
-    readLoop();
-  } catch(e) { addLog('Connection failed: ' + e.message, 'err'); }
-}
-
-async function disconnect() {
-  try { if (reader) { await reader.cancel(); reader=null; } if (port) { await port.close(); port=null; } } catch(e) {}
-  setStatus(false, 'Disconnected');
-  addLog('Disconnected.', 'err');
-}
-
-async function readLoop() {
-  const decoder = new TextDecoderStream();
-  port.readable.pipeTo(decoder.writable);
-  reader = decoder.readable.getReader();
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += value;
-      let nl;
-      while ((nl = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, nl).trim();
-        buffer = buffer.slice(nl+1);
-        if (!line) continue;
-        try {
-          const d = JSON.parse(line);
-          if (d.error)  { addLog('Sensor: '+d.error, 'err'); continue; }
-          if (d.status) { addLog(d.status, 'ok'); continue; }
-          if (typeof d.ay !== 'undefined') updateUI(d);
-        } catch(e) {}
+    function updateProfileStatusBadge() {
+      const badge = document.getElementById('profile-status-badge');
+      if (!badge) return;
+      try {
+        const storedUp = localStorage.getItem('flexiq_thresh_up');
+        const storedDown = localStorage.getItem('flexiq_thresh_down');
+        if (storedUp !== null && storedDown !== null) {
+          badge.textContent = `✓ Active Profile: Up ${parseFloat(storedUp).toFixed(1)} / Down ${parseFloat(storedDown).toFixed(1)}`;
+          badge.style.display = 'inline-flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      } catch (e) {
+        badge.style.display = 'none';
       }
     }
-  } catch(e) { if (isConnected) addLog('Read error: '+e.message, 'err'); setStatus(false,'Disconnected'); }
-}
 
-// ── INIT ───────────────────────────────────────────────
-if (!('serial' in navigator)) document.getElementById('no-serial-warning').style.display='block';
-renderHistory();
-</script>
+    // ── REAL-TIME HEIGHT CALCULATION ───────────────────────
+    function getPositionPercent(ay) {
+      const minLimit = threshDown;
+      const maxLimit = threshUp * 1.5;
+      const percent = ((ay - minLimit) / (maxLimit - minLimit)) * 100;
+      return Math.min(Math.max(percent, 0), 100);
+    }
+
+    // ── DATA UPDATE ────────────────────────────────────────
+    function updateUI(d) {
+      const ay = d.ay;
+      document.getElementById('val-ay').textContent = ay.toFixed(3);
+      document.getElementById('val-az').textContent = d.az.toFixed(3);
+
+      // Real-time Visual Height update
+      const targetVisualPos = getPositionPercent(ay);
+      currentVisualPos += 0.25 * (targetVisualPos - currentVisualPos);
+
+      const fillEl = document.getElementById('lift-height-fill');
+      const dotEl = document.getElementById('lift-height-dot');
+      if (fillEl && dotEl) {
+        fillEl.style.height = `${currentVisualPos}%`;
+        dotEl.style.bottom = `${currentVisualPos}%`;
+        dotEl.className = 'lift-height-dot ' + phase;
+      }
+
+      detectCurl(ay);
+    }
+
+    // ── SERIAL ─────────────────────────────────────────────
+    function addLog(msg, cls = '') {
+      const log = document.getElementById('log');
+      const p = document.createElement('p');
+      if (cls) p.className = cls;
+      p.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+      log.appendChild(p);
+      if (log.children.length > 60) log.removeChild(log.firstChild);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setStatus(connected, text) {
+      isConnected = connected;
+      document.getElementById('dot').className = 'dot' + (connected ? ' on' : '');
+      document.getElementById('status-text').textContent = text;
+
+      const connBtn = document.getElementById('connect-btn');
+      if (connected) {
+        connBtn.textContent = 'Disconnect';
+        connBtn.className = 'btn danger';
+        // When first connected, update the coach card to give a start guide
+        const textEl = document.getElementById('coaching-text');
+        if (textEl.textContent.includes('Tap "Connect USB"')) {
+          updateCoaching('rest', 'phase');
+        }
+      } else {
+        connBtn.textContent = 'Connect USB';
+        connBtn.className = 'btn primary';
+      }
+    }
+
+    async function toggleConnection() { isConnected ? await disconnect() : await connect(); }
+
+    async function connect() {
+      if (!('serial' in navigator)) { document.getElementById('no-serial-warning').style.display = 'block'; return; }
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        setStatus(true, 'Connected · 115200 baud');
+        addLog('Connected. Ready to count reps!', 'ok');
+        readLoop();
+      } catch (e) { addLog('Connection failed: ' + e.message, 'err'); }
+    }
+
+    async function disconnect() {
+      try { if (reader) { await reader.cancel(); reader = null; } if (port) { await port.close(); port = null; } } catch (e) { }
+      setStatus(false, 'Disconnected');
+      addLog('Disconnected.', 'err');
+    }
+
+    async function readLoop() {
+      const decoder = new TextDecoderStream();
+      port.readable.pipeTo(decoder.writable);
+      reader = decoder.readable.getReader();
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += value;
+          let nl;
+          while ((nl = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            if (!line) continue;
+            try {
+              const d = JSON.parse(line);
+              if (d.error) { addLog('Sensor: ' + d.error, 'err'); continue; }
+              if (d.status) { addLog(d.status, 'ok'); continue; }
+              if (typeof d.ay !== 'undefined') updateUI(d);
+            } catch (e) { }
+          }
+        }
+      } catch (e) { if (isConnected) addLog('Read error: ' + e.message, 'err'); setStatus(false, 'Disconnected'); }
+    }
+
+    // ── INIT ───────────────────────────────────────────────
+    if (!('serial' in navigator)) document.getElementById('no-serial-warning').style.display = 'block';
+
+    // Sync DOM calibration inputs with loaded threshold profile values
+    document.getElementById('thresh-up').value = threshUp;
+    document.getElementById('thresh-up-val').textContent = threshUp.toFixed(1);
+    document.getElementById('thresh-down').value = threshDown;
+    document.getElementById('thresh-down-val').textContent = threshDown.toFixed(1);
+
+    // Load and Sync DOM game speed multiplier with custom localStorage speed
+    try {
+      const storedSpeed = localStorage.getItem('flexiq_game_speed');
+      if (storedSpeed !== null) {
+        pipeSpeed = parseFloat(storedSpeed);
+        pipeSpawnInterval = Math.round(300 / pipeSpeed);
+      }
+    } catch (e) { }
+    document.getElementById('game-speed').value = pipeSpeed;
+    document.getElementById('game-speed-val').textContent = pipeSpeed.toFixed(1);
+
+    renderHistory();
+    updateCoaching('rest', 'phase'); // Initialize coaching message on startup
+    loadHighScore(); // Load game high score
+    updateProfileStatusBadge();
+  </script>
 </body>
+
 </html>
