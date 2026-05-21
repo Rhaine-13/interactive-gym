@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlexIQ Profiler · Calibration</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #07070c;
+      --card-bg: rgba(18, 18, 28, 0.65);
+      --card-bg-solid: #12121c;
+      --card-border: rgba(124, 77, 255, 0.12);
+      --card-border-hover: rgba(124, 77, 255, 0.25);
+      --text: #f1efff;
+      --text-muted: #8d8aa7;
+      --accent: #7c4dff;
+      --accent-glow: rgba(124, 77, 255, 0.25);
+      --accent-hover: #9b75ff;
+      --green: #00e676;
+      --green-glow: rgba(0, 230, 118, 0.25);
+      --blue: #29b6f6;
+      --blue-glow: rgba(41, 182, 246, 0.25);
+      --red: #ff5252;
+      --red-glow: rgba(255, 82, 82, 0.2);
+      --amber: #ffd740;
+      --font: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #15112c 0%, var(--bg) 70%);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), #512da8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 15px var(--accent-glow);
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: linear-gradient(90deg, #fff, #c5b3ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .hdr-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      padding: 6px 12px;
+      border-radius: 30px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: all 0.3s ease;
+    }
+
+    .dot.on {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: rgba(124, 77, 255, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(124, 77, 255, 0.1);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 15px var(--accent-glow);
+    }
+
+    .btn.primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      box-shadow: 0 6px 20px rgba(124, 77, 255, 0.4);
+    }
+
+    .btn.danger {
+      border-color: rgba(255, 82, 82, 0.3);
+      color: var(--red);
+    }
+
+    .btn.danger:hover {
+      border-color: var(--red);
+      background: rgba(255, 82, 82, 0.1);
+    }
+
+    .btn.success {
+      border-color: rgba(0, 230, 118, 0.3);
+      color: var(--green);
+    }
+
+    .btn.success:hover {
+      border-color: var(--green);
+      background: rgba(0, 230, 118, 0.1);
+    }
+
+    /* GRID LAYOUT */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      transition: all 0.3s ease;
+    }
+
+    .glass-card:hover {
+      border-color: var(--card-border-hover);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* STEP WIZARD */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .step-item {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      transition: all 0.25s ease;
+    }
+
+    .step-item.active {
+      border-color: var(--accent);
+      background: rgba(124, 77, 255, 0.03);
+      box-shadow: 0 4px 15px rgba(124, 77, 255, 0.05);
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .step-item.active .step-num {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .step-item.done .step-num {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+
+    .step-content h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .step-content p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* TELEMETRY */
+    .telemetry-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .telemetry-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      border-radius: 14px;
+      padding: 14px 10px;
+      text-align: center;
+      transition: all 0.25s ease;
+    }
+
+    .telemetry-box:hover {
+      transform: translateY(-2px);
+      border-color: rgba(124, 77, 255, 0.15);
+    }
+
+    .telemetry-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    .telemetry-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* RECORDER CONTROLS */
+    .recorder-hud {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .recorder-badge {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 4px 12px;
+      border-radius: 30px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .recorder-badge.recording {
+      background: rgba(255, 82, 82, 0.15);
+      border-color: rgba(255, 82, 82, 0.3);
+      color: var(--red);
+      animation: pulseAlert 1.5s infinite;
+    }
+
+    .recorder-badge.ready {
+      background: rgba(0, 230, 118, 0.15);
+      border-color: rgba(0, 230, 118, 0.3);
+      color: var(--green);
+    }
+
+    @keyframes pulseAlert {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    .recorder-timer {
+      font-size: 40px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+      font-family: monospace;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      width: 100%;
+    }
+
+    /* CHART WRAP */
+    .wide-chart-card {
+      margin-bottom: 24px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+      width: 100%;
+    }
+
+    /* ANALYTICS */
+    .profile-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+
+    .profile-lbl {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .profile-val {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .profile-val.recommended {
+      color: var(--accent);
+    }
+
+    .analysis-alert {
+      background: rgba(124, 77, 255, 0.05);
+      border: 1px solid rgba(124, 77, 255, 0.18);
+      border-radius: 16px;
+      padding: 18px;
+      font-size: 11px;
+      color: #c5b3ff;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+
+    .analysis-alert strong {
+      color: #fff;
+    }
+
+    .no-serial-warning {
+      display: none;
+      background: rgba(255, 82, 82, 0.1);
+      border: 1px solid rgba(255, 82, 82, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--red);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    @media (max-width:992px) {
+      .cal-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="no-serial-warning" class="no-serial-warning">
+    ⚠ Web Serial API not supported. Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> (v89+).
+  </div>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">💪</div>
+      <div>
+        <h1>FLEXIQ PROFILER</h1>
+        <div class="sub">Range of Motion Recorder</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <span class="status-pill" id="profile-status-badge" style="background: rgba(0, 230, 118, 0.05); border-color: rgba(0, 230, 118, 0.2); color: var(--green); display: none;">
+        ✓ Profile Calibrated
+      </span>
+      <a class="btn" href="index.html">← Back to Arcade</a>
+      <div class="status-pill">
+        <div class="dot" id="dot"></div>
+        <span id="status-text">Disconnected</span>
+      </div>
+      <button class="btn primary" id="connect-btn" onclick="toggleConnection()">Connect USB</button>
+    </div>
+  </header>
+
+  <div class="cal-grid">
+    <!-- LEFT RECORDER COLUMN -->
+    <div class="glass-card">
+      <div class="card-title">
+        <span>Calibration wizard</span>
+        <span id="step-badge" style="font-size: 10px; color: var(--accent); text-transform: uppercase;">Step 1 of 3</span>
+      </div>
+
+      <!-- WIZARD STEPPERS -->
+      <div class="step-list">
+        <div class="step-item active" id="step1-card">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h3>Connect Gym Sensor</h3>
+            <p>Plug in your ESP32 controller and click "Connect USB" to stream live accelerometer numbers.</p>
+          </div>
+        </div>
+
+        <div class="step-item" id="step2-card">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h3>Record 5 Wave Curls</h3>
+            <p>Click "🔴 Record", curl your arm fully up and extend fully down 5 times to register your limits.</p>
+          </div>
+        </div>
+
+        <div class="step-item" id="step3-card">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h3>Extract Peaks & Apply</h3>
+            <p>Click "⏹ Stop" to analyze your range peaks and save the custom profile.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE HUD -->
+      <div class="recorder-hud">
+        <div class="recorder-badge" id="record-state">Standby</div>
+        <div class="recorder-timer" id="record-timer">00.00</div>
+        
+        <div class="btn-row">
+          <button class="btn danger" id="record-btn" onclick="toggleRecording()" disabled>🔴 Start Recording</button>
+          <button class="btn" id="reset-rec-btn" onclick="resetRecord()" style="display: none;">⚡ Reset Data</button>
+        </div>
+      </div>
+
+      <!-- TELEMETRY SUMMARY -->
+      <div class="telemetry-row">
+        <div class="telemetry-box">
+          <div class="telemetry-val" id="tele-samples">0</div>
+          <div class="telemetry-lbl">Samples</div>
+        </div>
+        <div class="telemetry-box">
+          <div class="telemetry-val" id="tele-ay">0.00</div>
+          <div class="telemetry-lbl">Current Y</div>
+        </div>
+        <div class="telemetry-box">
+          <div class="telemetry-val" id="tele-peaks">0</div>
+          <div class="telemetry-lbl">Curls Found</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PROFILER COLUMN -->
+    <div class="glass-card" style="display: flex; flex-direction: column;">
+      <div class="card-title">ROM PROFILE ANALYZER</div>
+
+      <div style="flex-grow: 1;">
+        <!-- PROFILE SUMMARY -->
+        <h4 style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">Current Device Calibration</h4>
+        <div class="profile-row">
+          <span class="profile-lbl">Current Up Threshold (Curl)</span>
+          <span class="profile-val" id="cur-thresh-up">1.5</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-lbl">Current Down Threshold (Descent)</span>
+          <span class="profile-val" id="cur-thresh-down">-1.5</span>
+        </div>
+
+        <h4 style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 24px; margin-bottom: 12px; letter-spacing: 0.05em;">Recorded Wave Profile</h4>
+        <div class="profile-row">
+          <span class="profile-lbl">Average High Curl Peak</span>
+          <span class="profile-val" id="rec-peak-high">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-lbl">Average Low Extension Trough</span>
+          <span class="profile-val" id="rec-trough-low">—</span>
+        </div>
+
+        <h4 style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-top: 24px; margin-bottom: 12px; letter-spacing: 0.05em;">Recommended Calibration Triggers</h4>
+        <div class="profile-row" style="border-color: rgba(124, 77, 255, 0.2); background: rgba(124, 77, 255, 0.02);">
+          <span class="profile-lbl" style="color: #fff;">Proposed Up Threshold</span>
+          <span class="profile-val recommended" id="prop-thresh-up">—</span>
+        </div>
+        <div class="profile-row" style="border-color: rgba(124, 77, 255, 0.2); background: rgba(124, 77, 255, 0.02);">
+          <span class="profile-lbl" style="color: #fff;">Proposed Down Threshold</span>
+          <span class="profile-val recommended" id="prop-thresh-down">—</span>
+        </div>
+
+        <div class="analysis-alert" id="analysis-coach">
+          💡 <strong>Need Calibration?</strong> Plug in your sensor, curl fully up and extend fully down to record your natural ROM profile. The analyzer will calculate recommended settings.
+        </div>
+      </div>
+
+      <div style="margin-top: 24px;">
+        <button class="btn primary" id="apply-btn" onclick="applyCalibration()" style="width: 100%; justify-content: center; padding: 14px 20px; font-size: 13px;" disabled>
+          💾 Apply New Calibration Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIDE TELEMETRY WAVEFORM CARD -->
+  <div class="glass-card wide-chart-card">
+    <div class="card-title">Live Sensor Waveform & Calibration Bounds</div>
+    <div class="chart-wrap">
+      <canvas id="motion-chart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ── STATE ──────────────────────────────────────────────
+    let port, reader, isConnected = false, buffer = '';
+    
+    // Loaded profile settings
+    let threshUp = 1.5, threshDown = -1.5;
+    
+    // Recorder state
+    let isRecording = false;
+    let recordedSamples = [];
+    let recordStartTime = 0;
+    let recordTimerInterval = null;
+    
+    // Extracted Analysis Results
+    let avgPeakHigh = 0;
+    let avgTroughLow = 0;
+    let calculatedThreshUp = 1.5;
+    let calculatedThreshDown = -1.5;
+
+    // Charting constants
+    const MAX_POINTS = 100;
+    const accelData = Array(MAX_POINTS).fill(null);
+
+    // ── LOAD THRESHOLDS ON START ───────────────────────────
+    function loadSavedThresholds() {
+      try {
+        const storedUp = localStorage.getItem('flexiq_thresh_up');
+        const storedDown = localStorage.getItem('flexiq_thresh_down');
+        if (storedUp !== null) threshUp = parseFloat(storedUp);
+        if (storedDown !== null) threshDown = parseFloat(storedDown);
+      } catch(e) {}
+      
+      document.getElementById('cur-thresh-up').textContent = threshUp.toFixed(1);
+      document.getElementById('cur-thresh-down').textContent = threshDown.toFixed(1);
+      updateProfileStatusBadge();
+    }
+
+    function updateProfileStatusBadge() {
+      const storedUp = localStorage.getItem('flexiq_thresh_up');
+      const storedDown = localStorage.getItem('flexiq_thresh_down');
+      const badge = document.getElementById('profile-status-badge');
+      if (storedUp !== null && storedDown !== null) {
+        badge.style.display = 'inline-flex';
+        badge.innerHTML = `✓ Active Calibration: Up ${parseFloat(storedUp).toFixed(1)} / Down ${parseFloat(storedDown).toFixed(1)}`;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ── CHART SETUP ────────────────────────────────────────
+    const ctx = document.getElementById('motion-chart');
+    const chartGradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 200);
+    chartGradient.addColorStop(0, 'rgba(124, 77, 255, 0.4)');
+    chartGradient.addColorStop(1, 'rgba(124, 77, 255, 0.01)');
+
+    const motionChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array(MAX_POINTS).fill(''),
+        datasets: [
+          {
+            label: 'Accel Y (Curl Accelerometer)',
+            data: [...accelData],
+            borderColor: '#7c4dff',
+            backgroundColor: chartGradient,
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.35,
+            pointRadius: 0
+          },
+          { 
+            label: 'Up Trigger Limit',
+            data: Array(MAX_POINTS).fill(threshUp), 
+            borderColor: '#00e676', 
+            borderWidth: 1.5, 
+            borderDash: [5, 5], 
+            pointRadius: 0, 
+            fill: false, 
+            tension: 0 
+          },
+          { 
+            label: 'Down Trigger Limit',
+            data: Array(MAX_POINTS).fill(threshDown), 
+            borderColor: '#29b6f6', 
+            borderWidth: 1.5, 
+            borderDash: [5, 5], 
+            pointRadius: 0, 
+            fill: false, 
+            tension: 0 
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { display: false },
+          y: {
+            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+            ticks: { color: '#8d8aa7', font: { family: 'Outfit', size: 9, weight: '600' }, maxTicksLimit: 5 }
+          }
+        }
+      }
+    });
+
+    // ── DATA UPDATE ────────────────────────────────────────
+    function updateUI(d) {
+      const ay = d.ay;
+      document.getElementById('tele-ay').textContent = ay.toFixed(2);
+      
+      // Update graph
+      accelData.push(ay);
+      if (accelData.length > MAX_POINTS) accelData.shift();
+      motionChart.data.datasets[0].data = [...accelData];
+      motionChart.data.labels.push('');
+      if (motionChart.data.labels.length > MAX_POINTS) motionChart.data.labels.shift();
+      motionChart.update('none');
+
+      // Record sample if recording is active
+      if (isRecording) {
+        recordedSamples.push(ay);
+        document.getElementById('tele-samples').textContent = recordedSamples.length;
+      }
+    }
+
+    // ── WEB SERIAL PIPELINE ────────────────────────────────
+    function setStatus(connected, text) {
+      isConnected = connected;
+      document.getElementById('dot').className = 'dot' + (connected ? ' on' : '');
+      document.getElementById('status-text').textContent = text;
+
+      const connBtn = document.getElementById('connect-btn');
+      const recBtn = document.getElementById('record-btn');
+      const step1 = document.getElementById('step1-card');
+      const step2 = document.getElementById('step2-card');
+
+      if (connected) {
+        connBtn.textContent = 'Disconnect';
+        connBtn.className = 'btn danger';
+        recBtn.disabled = false;
+        
+        step1.className = 'step-item done';
+        step2.className = 'step-item active';
+        document.getElementById('step-badge').textContent = 'Step 2 of 3';
+        
+        document.getElementById('record-state').textContent = 'Ready';
+        document.getElementById('record-state').className = 'recorder-badge ready';
+      } else {
+        connBtn.textContent = 'Connect USB';
+        connBtn.className = 'btn primary';
+        recBtn.disabled = true;
+        
+        step1.className = 'step-item active';
+        step2.className = 'step-item';
+        document.getElementById('step-badge').textContent = 'Step 1 of 3';
+        
+        document.getElementById('record-state').textContent = 'Standby';
+        document.getElementById('record-state').className = 'recorder-badge';
+        
+        if (isRecording) stopRecording();
+      }
+    }
+
+    async function toggleConnection() { isConnected ? await disconnect() : await connect(); }
+
+    async function connect() {
+      if (!('serial' in navigator)) { document.getElementById('no-serial-warning').style.display = 'block'; return; }
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        setStatus(true, 'Connected · 115200 baud');
+        readLoop();
+      } catch (e) { console.error('Connection failed: ' + e.message); }
+    }
+
+    async function disconnect() {
+      try { if (reader) { await reader.cancel(); reader = null; } if (port) { await port.close(); port = null; } } catch (e) { }
+      setStatus(false, 'Disconnected');
+    }
+
+    async function readLoop() {
+      const decoder = new TextDecoderStream();
+      port.readable.pipeTo(decoder.writable);
+      reader = decoder.readable.getReader();
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += value;
+          let nl;
+          while ((nl = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, nl).trim();
+            buffer = buffer.slice(nl + 1);
+            if (!line) continue;
+            try {
+              const d = JSON.parse(line);
+              if (typeof d.ay !== 'undefined') updateUI(d);
+            } catch (e) { }
+          }
+        }
+      } catch (e) { setStatus(false, 'Disconnected'); }
+    }
+
+    // ── RECORDING CONTROLS ──────────────────────────────────
+    function toggleRecording() {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    }
+
+    function startRecording() {
+      isRecording = true;
+      recordedSamples = [];
+      recordStartTime = Date.now();
+      
+      const recBtn = document.getElementById('record-btn');
+      recBtn.textContent = '⏹ Stop Recording';
+      recBtn.className = 'btn primary';
+      
+      document.getElementById('record-state').textContent = 'Recording';
+      document.getElementById('record-state').className = 'recorder-badge recording';
+      document.getElementById('reset-rec-btn').style.display = 'none';
+      
+      const applyBtn = document.getElementById('apply-btn');
+      applyBtn.textContent = '💾 Apply New Calibration Settings';
+      applyBtn.className = 'btn primary';
+      applyBtn.disabled = true;
+      
+      // Timer update loop
+      recordTimerInterval = setInterval(() => {
+        const elapsed = (Date.now() - recordStartTime) / 1000;
+        document.getElementById('record-timer').textContent = elapsed.toFixed(2);
+      }, 50);
+
+      document.getElementById('step2-card').className = 'step-item active';
+      document.getElementById('step3-card').className = 'step-item';
+      document.getElementById('step-badge').textContent = 'Step 2 of 3';
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      clearInterval(recordTimerInterval);
+      
+      const recBtn = document.getElementById('record-btn');
+      recBtn.textContent = '🔴 Start Recording';
+      recBtn.className = 'btn danger';
+      
+      document.getElementById('record-state').textContent = 'Analyzed';
+      document.getElementById('record-state').className = 'recorder-badge ready';
+      document.getElementById('reset-rec-btn').style.display = 'inline-flex';
+      
+      document.getElementById('step2-card').className = 'step-item done';
+      document.getElementById('step3-card').className = 'step-item active';
+      document.getElementById('step-badge').textContent = 'Step 3 of 3';
+      
+      analyzeData();
+    }
+
+    function resetRecord() {
+      recordedSamples = [];
+      document.getElementById('tele-samples').textContent = '0';
+      document.getElementById('tele-peaks').textContent = '0';
+      document.getElementById('record-timer').textContent = '00.00';
+      
+      document.getElementById('rec-peak-high').textContent = '—';
+      document.getElementById('rec-trough-low').textContent = '—';
+      document.getElementById('prop-thresh-up').textContent = '—';
+      document.getElementById('prop-thresh-down').textContent = '—';
+      
+      const applyBtn = document.getElementById('apply-btn');
+      applyBtn.textContent = '💾 Apply New Calibration Settings';
+      applyBtn.className = 'btn primary';
+      applyBtn.disabled = true;
+      document.getElementById('reset-rec-btn').style.display = 'none';
+      
+      document.getElementById('step2-card').className = 'step-item active';
+      document.getElementById('step3-card').className = 'step-item';
+      document.getElementById('step-badge').textContent = 'Step 2 of 3';
+      
+      document.getElementById('analysis-coach').innerHTML = `
+        💡 <strong>Data Reset.</strong> Plug in your sensor, curl fully up and extend fully down to record your natural ROM profile. The analyzer will calculate recommended settings.
+      `;
+    }
+
+    // ── DATA ANALYSIS & PEAKS ALGORITHM ─────────────────────
+    function analyzeData() {
+      if (recordedSamples.length < 20) {
+        document.getElementById('analysis-coach').innerHTML = `
+          ❌ <strong>Too few samples!</strong> You recorded less than 20 sensor cycles. Please record for at least 8-10 seconds, doing multiple full-ROM bicep curls.
+        `;
+        return;
+      }
+      
+      // Extract peaks & troughs using a windowed filter to eliminate high-frequency noise
+      const peaks = [];
+      const troughs = [];
+      
+      // Low pass filter smoothing on array for mathematical processing
+      const smoothed = [];
+      for (let i = 0; i < recordedSamples.length; i++) {
+        let sum = 0;
+        let count = 0;
+        const windowSize = 5; // 5-sample moving average filter
+        for (let j = Math.max(0, i - windowSize); j <= Math.min(recordedSamples.length - 1, i + windowSize); j++) {
+          sum += recordedSamples[j];
+          count++;
+        }
+        smoothed.push(sum / count);
+      }
+      
+      // Peaks detection
+      const minDistance = 15; // Minimum samples between peaks (prevent double-counting peak noise)
+      let lastPeakIndex = -minDistance;
+      let lastTroughIndex = -minDistance;
+      
+      for (let i = 2; i < smoothed.length - 2; i++) {
+        // Find Local Maxima (Peak contraction)
+        if (smoothed[i] > smoothed[i - 1] && smoothed[i] > smoothed[i - 2] &&
+            smoothed[i] > smoothed[i + 1] && smoothed[i] > smoothed[i + 2]) {
+          if (smoothed[i] > 0.4 && (i - lastPeakIndex) > minDistance) {
+            peaks.push(smoothed[i]);
+            lastPeakIndex = i;
+          }
+        }
+        
+        // Find Local Minima (Trough descent)
+        if (smoothed[i] < smoothed[i - 1] && smoothed[i] < smoothed[i - 2] &&
+            smoothed[i] < smoothed[i + 1] && smoothed[i] < smoothed[i + 2]) {
+          if (smoothed[i] < -0.4 && (i - lastTroughIndex) > minDistance) {
+            troughs.push(smoothed[i]);
+            lastTroughIndex = i;
+          }
+        }
+      }
+      
+      document.getElementById('tele-peaks').textContent = peaks.length;
+      
+      if (peaks.length === 0 || troughs.length === 0) {
+        document.getElementById('analysis-coach').innerHTML = `
+          ⚠ <strong>No distinct curl patterns found.</strong> Please make sure you are doing full, exaggerated curls (fully up and fully down) and that your accelerometer Y stream is active.
+        `;
+        return;
+      }
+      
+      // Compute average bounds of top peaks/troughs
+      avgPeakHigh = peaks.reduce((a, b) => a + b, 0) / peaks.length;
+      avgTroughLow = troughs.reduce((a, b) => a + b, 0) / troughs.length;
+      
+      // Generate recommended settings (apply safety factors)
+      // Safety factor 0.70 of actual peaks so trigger is reached reliably without fatigue
+      calculatedThreshUp = Math.min(Math.max(avgPeakHigh * 0.70, 0.6), 4.5);
+      calculatedThreshDown = Math.max(Math.min(avgTroughLow * 0.70, -0.6), -4.5);
+      
+      // Update DOM
+      document.getElementById('rec-peak-high').textContent = avgPeakHigh.toFixed(2) + ' G';
+      document.getElementById('rec-trough-low').textContent = avgTroughLow.toFixed(2) + ' G';
+      document.getElementById('prop-thresh-up').textContent = calculatedThreshUp.toFixed(1);
+      document.getElementById('prop-thresh-down').textContent = calculatedThreshDown.toFixed(1);
+      
+      // Compare proposed parameters with the active saved parameters
+      const applyBtn = document.getElementById('apply-btn');
+      if (calculatedThreshUp.toFixed(1) === threshUp.toFixed(1) && calculatedThreshDown.toFixed(1) === threshDown.toFixed(1)) {
+        applyBtn.textContent = '✓ Proposed Profile Already Applied';
+        applyBtn.className = 'btn success';
+        applyBtn.disabled = true;
+      } else {
+        applyBtn.textContent = '💾 Apply New Calibration Settings';
+        applyBtn.className = 'btn primary';
+        applyBtn.disabled = false;
+      }
+      
+      // Render bounds lines on the chart representing recommended settings
+      motionChart.data.datasets[1].data = Array(MAX_POINTS).fill(calculatedThreshUp);
+      motionChart.data.datasets[2].data = Array(MAX_POINTS).fill(calculatedThreshDown);
+      motionChart.update('none');
+      
+      document.getElementById('analysis-coach').innerHTML = `
+        ✅ <strong>Curling Wave Analyzed!</strong> Detected <strong style="color:var(--green);">${peaks.length} curls</strong>.<br>
+        Average Peak: <strong>${avgPeakHigh.toFixed(2)}G</strong> · Average Extension: <strong>${avgTroughLow.toFixed(2)}G</strong>.<br>
+        Click <strong>Apply New Calibration</strong> to update your shared sensor profile.
+      `;
+    }
+
+    // ── APPLY CALIBRATION PROFILE ──────────────────────────
+    function applyCalibration() {
+      try {
+        localStorage.setItem('flexiq_thresh_up', calculatedThreshUp.toFixed(1));
+        localStorage.setItem('flexiq_thresh_down', calculatedThreshDown.toFixed(1));
+        
+        // Sync the local thresholds as well
+        threshUp = calculatedThreshUp;
+        threshDown = calculatedThreshDown;
+        
+        // Update current column
+        document.getElementById('cur-thresh-up').textContent = calculatedThreshUp.toFixed(1);
+        document.getElementById('cur-thresh-down').textContent = calculatedThreshDown.toFixed(1);
+        
+        // Update status badge
+        updateProfileStatusBadge();
+        
+        // 1. Send data to save_calibration.php to write local calibration_basis.txt log
+        const payload = {
+          threshUp: calculatedThreshUp,
+          threshDown: calculatedThreshDown,
+          avgPeakHigh: avgPeakHigh,
+          avgTroughLow: avgTroughLow,
+          samplesCount: recordedSamples.length
+        };
+        
+        fetch('save_calibration.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Server log success:', data);
+        })
+        .catch(err => {
+          console.warn('PHP server logging not available:', err);
+        });
+
+        // 2. Dynamically trigger a browser download of the text file for the user
+        const dateStr = new Date().toLocaleString();
+        let txt = `==================================================\n`;
+        txt += `FLEXIQ ROM SENSOR CALIBRATION CONFIRMATION\n`;
+        txt += `==================================================\n`;
+        txt += `Saved On: ${dateStr}\n\n`;
+        txt += `1. Mathematical Analysis Basis:\n`;
+        txt += `   - Total Sensor Data Points: ${recordedSamples.length} samples\n`;
+        txt += `   - Average Bicep Peak Contraction: ${avgPeakHigh.toFixed(3)} G\n`;
+        txt += `   - Average Bicep Extension Trough: ${avgTroughLow.toFixed(3)} G\n\n`;
+        txt += `2. Calibration Settings Applied:\n`;
+        txt += `   - Up Threshold (Trigger):   ${calculatedThreshUp.toFixed(1)}\n`;
+        txt += `   - Down Threshold (Release): ${calculatedThreshDown.toFixed(1)}\n\n`;
+        txt += `3. Sync Status:\n`;
+        txt += `   - localStorage: Successfully Saved & Synced ✓\n`;
+        txt += `   - Device profile: Active ✓\n`;
+        txt += `==================================================\n`;
+        
+        const blob = new Blob([txt], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `flexiq_calibration_basis_${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Dynamic success styling on button
+        const applyBtn = document.getElementById('apply-btn');
+        applyBtn.textContent = '✓ Calibration Applied Successfully!';
+        applyBtn.className = 'btn success';
+        applyBtn.disabled = true;
+        
+        // Alert sound
+        playConfirmationTone();
+        
+        document.getElementById('analysis-coach').innerHTML = `
+          🎉 <strong>Calibration Applied Successfully!</strong> Custom ROM profile saved.<br>
+          Up: <strong>${calculatedThreshUp.toFixed(1)}</strong> · Down: <strong>${calculatedThreshDown.toFixed(1)}</strong>.<br>
+          You can now return to the Bicep Bird game to enjoy custom, personalized controls!
+        `;
+        
+        document.getElementById('step3-card').className = 'step-item done';
+      } catch (e) {
+        alert('Could not save to localStorage: ' + e.message);
+      }
+    }
+
+    function updateProfileStatusBadge() {
+      const badge = document.getElementById('profile-status-badge');
+      if (!badge) return;
+      try {
+        const storedUp = localStorage.getItem('flexiq_thresh_up');
+        const storedDown = localStorage.getItem('flexiq_thresh_down');
+        if (storedUp !== null && storedDown !== null) {
+          badge.textContent = `✓ Active Profile: Up ${parseFloat(storedUp).toFixed(1)} / Down ${parseFloat(storedDown).toFixed(1)}`;
+          badge.style.display = 'inline-flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      } catch (e) {
+        badge.style.display = 'none';
+      }
+    }
+
+    function playConfirmationTone() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = 880; // A5
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.25);
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch(e) {}
+    }
+
+    // ── INIT ───────────────────────────────────────────────
+    if (!('serial' in navigator)) document.getElementById('no-serial-warning').style.display = 'block';
+    loadSavedThresholds();
+    updateProfileStatusBadge();
+  </script>
+</body>
+
+</html>
