@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPU-6050 Curl Counter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0c; --card: #13131a; --card2: #1a1a24;
+    --border: rgba(255,255,255,0.07); --text: #e8e8f0; --muted: #55556a;
+    --accent: #6c63ff; --green: #2ecc71; --red: #e74c3c;
+    --amber: #f39c12; --blue: #3498db; --font: 'Courier New', monospace;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; padding:20px; }
+
+  header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo-icon { width:38px; height:38px; border-radius:10px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:20px; }
+  h1 { font-size:17px; font-weight:700; letter-spacing:0.06em; }
+  .sub { font-size:10px; color:var(--muted); letter-spacing:0.12em; text-transform:uppercase; margin-top:2px; }
+  .hdr-right { display:flex; align-items:center; gap:10px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
+  .dot.on { background:var(--green); box-shadow:0 0 8px var(--green); }
+  #status-text { font-size:11px; color:var(--muted); }
+
+  .btn { padding:8px 16px; border-radius:6px; border:1px solid var(--border); background:var(--card2); color:var(--text); font-family:var(--font); font-size:11px; letter-spacing:0.08em; cursor:pointer; transition:all 0.2s; }
+  .btn:hover { border-color:var(--accent); color:var(--accent); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { opacity:0.85; }
+  .btn.danger { border-color:rgba(231,76,60,0.4); color:var(--red); }
+  .btn.danger:hover { border-color:var(--red); background:rgba(231,76,60,0.1); }
+  .btn.success { border-color:rgba(46,204,113,0.4); color:var(--green); }
+  .btn.success:hover { border-color:var(--green); background:rgba(46,204,113,0.1); }
+
+  .rep-section { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px 24px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+  .rep-left { flex:1; }
+  .rep-label { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  .rep-count { font-size:96px; font-weight:700; line-height:1; color:var(--accent); transition:transform 0.1s, color 0.2s; }
+  .rep-count.flash { color:var(--green); transform:scale(1.08); }
+  .rep-set { font-size:13px; color:var(--muted); margin-top:8px; }
+  .rep-right { display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .phase-box { width:160px; padding:14px 10px; border-radius:12px; text-align:center; border:2px solid var(--border); transition:all 0.3s; background:var(--card2); }
+  .phase-box.up { border-color:var(--green); background:rgba(46,204,113,0.08); }
+  .phase-box.down { border-color:var(--blue); background:rgba(52,152,219,0.08); }
+  .phase-icon { font-size:30px; margin-bottom:4px; }
+  .phase-label { font-size:13px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; }
+  .phase-label.up { color:var(--green); }
+  .phase-label.down { color:var(--blue); }
+  .phase-label.rest { color:var(--muted); }
+  .set-controls { display:flex; gap:8px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+
+  .metrics-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+  .metric-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .metric-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .metric-val { font-size:22px; font-weight:700; }
+  .c-acc { color:#6c63ff; } .c-grn { color:var(--green); } .c-amb { color:var(--amber); } .c-blu { color:var(--blue); }
+
+  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:16px; }
+  .chart-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .chart-title { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
+  .legend { display:flex; gap:14px; font-size:10px; color:var(--muted); }
+  .ld { width:8px; height:8px; border-radius:2px; display:inline-block; margin-right:4px; vertical-align:middle; }
+  .chart-wrap { position:relative; height:160px; }
+
+  .thresh-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .thresh-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .thresh-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  .thresh-row-inner { display:flex; align-items:center; gap:10px; }
+  input[type=range] { flex:1; }
+  .thresh-val { font-size:13px; font-weight:700; min-width:40px; color:var(--accent); }
+
+  .history-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:16px; }
+  .history-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .history-title { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
+  .history-actions { display:flex; gap:8px; }
+
+  .workout-list { display:flex; flex-direction:column; gap:10px; max-height:320px; overflow-y:auto; }
+  .workout-item { background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+  .workout-item-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .workout-date { font-size:11px; color:var(--accent); font-weight:700; }
+  .workout-tag { font-size:9px; background:rgba(108,99,255,0.15); color:var(--accent); border:1px solid rgba(108,99,255,0.3); border-radius:20px; padding:2px 10px; letter-spacing:0.1em; }
+  .workout-stats { display:flex; gap:16px; }
+  .wstat { font-size:11px; color:var(--muted); }
+  .wstat strong { color:var(--text); font-weight:700; }
+  .sets-inline { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .set-pill { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:20px; padding:3px 12px; font-size:10px; color:var(--muted); }
+  .set-pill span { color:var(--green); font-weight:700; }
+  .no-history { font-size:12px; color:var(--muted); padding:8px 0; }
+  .del-workout { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:2px 6px; border-radius:4px; transition:color 0.2s; }
+  .del-workout:hover { color:var(--red); }
+
+  .cur-sets-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
+  .sets-grid { display:flex; flex-wrap:wrap; gap:8px; }
+
+  .log-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .log-title { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  #log { height:70px; overflow-y:auto; font-size:10px; color:var(--muted); line-height:1.9; }
+  #log p { margin:0; }
+  #log .ok { color:var(--green); } #log .err { color:var(--red); } #log .rep { color:var(--accent); font-weight:700; }
+
+  .no-serial { display:none; background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.3); border-radius:10px; padding:12px 16px; font-size:12px; color:var(--red); margin-bottom:14px; }
+
+  @media (max-width:700px) {
+    .metrics-row { grid-template-columns:repeat(2,1fr); }
+    .rep-section { flex-direction:column; }
+    .thresh-row { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="no-serial-warning" class="no-serial">
+  ⚠ Web Serial API not supported. Use <strong>Chrome</strong> or <strong>Edge</strong> (v89+).
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">💪</div>
+    <div>
+      <h1>CURL COUNTER</h1>
+      <div class="sub">ESP32 · MPU-6050 · Real-time</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="dot" id="dot"></div>
+    <span id="status-text">Disconnected</span>
+    <button class="btn primary" onclick="toggleConnection()">Connect USB</button>
+  </div>
+</header>
+
+<!-- REP COUNTER -->
+<div class="rep-section">
+  <div class="rep-left">
+    <div class="rep-label">Reps this set</div>
+    <div class="rep-count" id="rep-count">0</div>
+    <div class="rep-set" id="set-info">Set 1 · 0 total reps</div>
+    <div class="set-controls">
+      <button class="btn" onclick="newSet()">+ New Set</button>
+      <button class="btn success" onclick="saveWorkout()">💾 Save Workout</button>
+      <button class="btn danger" onclick="resetAll()">Reset</button>
+    </div>
+  </div>
+  <div class="rep-right">
+    <div class="phase-box rest" id="phase-box">
+      <div class="phase-icon" id="phase-icon">😴</div>
+      <div class="phase-label rest" id="phase-label">REST</div>
+    </div>
+    <div style="font-size:11px; color:var(--muted); text-align:center; max-width:140px; line-height:1.6;">
+      Hold sensor while curling. Lift = UP, Lower = DOWN.
+    </div>
+  </div>
+</div>
+
+<!-- METRICS -->
+<div class="metrics-row">
+  <div class="metric-card">
+    <div class="metric-label">Accel Y (curl axis)</div>
+    <div class="metric-val c-acc" id="val-ay">—</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Accel Z</div>
+    <div class="metric-val c-grn" id="val-az">—</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Sets today</div>
+    <div class="metric-val c-amb" id="val-sets">0</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Total reps</div>
+    <div class="metric-val c-blu" id="val-total">0</div>
+  </div>
+</div>
+
+<!-- LIVE CHART -->
+<div class="chart-card">
+  <div class="chart-hdr">
+    <span class="chart-title">Acceleration Y — Curl Motion</span>
+    <div class="legend">
+      <span><span class="ld" style="background:#6c63ff"></span>Accel Y</span>
+      <span><span class="ld" style="background:#2ecc71"></span>UP thresh</span>
+      <span><span class="ld" style="background:#3498db"></span>DOWN thresh</span>
+    </div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="motion-chart" role="img" aria-label="Live curl motion chart"></canvas>
+  </div>
+</div>
+
+<!-- THRESHOLDS -->
+<div class="thresh-row">
+  <div class="thresh-card">
+    <div class="thresh-label">UP threshold (curl up trigger)</div>
+    <div class="thresh-row-inner">
+      <input type="range" id="thresh-up" min="0.5" max="5" step="0.1" value="1.5" oninput="updateThresh()">
+      <span class="thresh-val" id="thresh-up-val">1.5</span>
+    </div>
+  </div>
+  <div class="thresh-card">
+    <div class="thresh-label">DOWN threshold (lower trigger)</div>
+    <div class="thresh-row-inner">
+      <input type="range" id="thresh-down" min="-5" max="-0.5" step="0.1" value="-1.5" oninput="updateThresh()">
+      <span class="thresh-val" id="thresh-down-val">-1.5</span>
+    </div>
+  </div>
+</div>
+
+<!-- CURRENT SESSION SETS -->
+<div class="cur-sets-card">
+  <div class="history-hdr">
+    <span class="history-title">Current session sets</span>
+  </div>
+  <div class="sets-grid" id="sets-grid">
+    <span class="no-history">No sets yet. Start curling!</span>
+  </div>
+</div>
+
+<!-- WORKOUT HISTORY -->
+<div class="history-card">
+  <div class="history-hdr">
+    <span class="history-title">Workout history</span>
+    <div class="history-actions">
+      <button class="btn" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn danger" onclick="clearAllHistory()">Clear All</button>
+    </div>
+  </div>
+  <div class="workout-list" id="workout-list">
+    <span class="no-history">No saved workouts yet.</span>
+  </div>
+</div>
+
+<!-- LOG -->
+<div class="log-card">
+  <div class="log-title">Serial Log</div>
+  <div id="log"><p class="ok">// Waiting for connection...</p></div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+let port, reader, isConnected = false, buffer = '';
+let reps = 0, setNum = 1, totalReps = 0;
+let sets = [];
+let threshUp = 1.5, threshDown = -1.5;
+let phase = 'rest';
+let cooldown = 0;
+const MAX_POINTS = 80;
+const accelData = Array(MAX_POINTS).fill(null);
+
+// ── STORAGE KEY ────────────────────────────────────────
+const STORAGE_KEY = 'curl_counter_workouts';
+
+// ── LOAD HISTORY ON START ──────────────────────────────
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveHistory(workouts) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts)); } catch(e) {}
+}
+
+// ── CHART ──────────────────────────────────────────────
+const ctx = document.getElementById('motion-chart');
+const motionChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: Array(MAX_POINTS).fill(''),
+    datasets: [
+      { data: [...accelData], borderColor:'#6c63ff', backgroundColor:'rgba(108,99,255,0.08)', borderWidth:2, fill:true, tension:0.3, pointRadius:0 },
+      { data: Array(MAX_POINTS).fill(threshUp),   borderColor:'#2ecc71', borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false, tension:0 },
+      { data: Array(MAX_POINTS).fill(threshDown), borderColor:'#3498db', borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false, tension:0 },
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false, animation:false,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ display:false },
+      y:{ grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#55556a', font:{ family:'Courier New', size:9 }, maxTicksLimit:6 } }
+    },
+    elements:{ line:{ borderWidth:2 } }
+  }
+});
+
+// ── CURL DETECTION ─────────────────────────────────────
+function detectCurl(ay) {
+  if (cooldown > 0) { cooldown--; return; }
+  if (phase === 'rest' || phase === 'down') {
+    if (ay > threshUp) { phase='up'; setPhaseUI('up'); cooldown=5; }
+  } else if (phase === 'up') {
+    // Changed: trigger DOWN when AY falls back below a low positive value
+    if (ay < 0.3) { phase='down'; setPhaseUI('down'); countRep(); cooldown=8; }
+  }
+  if (ay < 0.2 && phase === 'down') { phase='rest'; setPhaseUI('rest'); }
+}
+
+function countRep() {
+  reps++; totalReps++;
+  const el = document.getElementById('rep-count');
+  el.textContent = reps;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 300);
+  document.getElementById('val-total').textContent = totalReps;
+  updateSetInfo();
+  addLog(`Rep ${reps} counted! (Set ${setNum})`, 'rep');
+}
+
+function setPhaseUI(p) {
+  const box = document.getElementById('phase-box');
+  const icon = document.getElementById('phase-icon');
+  const lbl = document.getElementById('phase-label');
+  box.className = 'phase-box ' + p;
+  lbl.className = 'phase-label ' + p;
+  if (p==='up')   { icon.textContent='⬆️'; lbl.textContent='CURL UP'; }
+  if (p==='down') { icon.textContent='⬇️'; lbl.textContent='LOWER'; }
+  if (p==='rest') { icon.textContent='😴'; lbl.textContent='REST'; }
+}
+
+function updateSetInfo() {
+  document.getElementById('set-info').textContent = `Set ${setNum} · ${totalReps} total rep${totalReps!==1?'s':''}`;
+}
+
+function newSet() {
+  if (reps > 0) {
+    sets.push({ set: setNum, reps });
+    renderCurrentSets();
+  }
+  setNum++; reps=0;
+  document.getElementById('rep-count').textContent='0';
+  document.getElementById('val-sets').textContent=sets.length;
+  updateSetInfo();
+  phase='rest'; setPhaseUI('rest');
+  addLog(`Set ${setNum} started.`, 'ok');
+}
+
+function resetAll() {
+  reps=0; totalReps=0; setNum=1; sets=[];
+  document.getElementById('rep-count').textContent='0';
+  document.getElementById('val-total').textContent='0';
+  document.getElementById('val-sets').textContent='0';
+  updateSetInfo(); phase='rest'; setPhaseUI('rest');
+  renderCurrentSets();
+  addLog('Session reset.', 'ok');
+}
+
+function renderCurrentSets() {
+  const grid = document.getElementById('sets-grid');
+  if (sets.length===0) { grid.innerHTML='<span class="no-history">No sets yet. Start curling!</span>'; return; }
+  grid.innerHTML = sets.map(s => `<div class="set-pill">Set ${s.set} <span>${s.reps} reps</span></div>`).join('');
+}
+
+// ── SAVE WORKOUT ───────────────────────────────────────
+function saveWorkout() {
+  const activeSets = [...sets];
+  if (reps > 0) activeSets.push({ set: setNum, reps });
+  if (activeSets.length === 0) { addLog('Nothing to save — do at least one rep!', 'err'); return; }
+
+  const totalR = activeSets.reduce((a, s) => a + s.reps, 0);
+  const workout = {
+    id: Date.now(),
+    date: new Date().toLocaleString(),
+    totalSets: activeSets.length,
+    totalReps: totalR,
+    sets: activeSets,
+    threshUp, threshDown
+  };
+
+  const history = loadHistory();
+  history.unshift(workout); // newest first
+  saveHistory(history);
+  renderHistory();
+  addLog(`Workout saved! ${activeSets.length} sets, ${totalR} reps.`, 'ok');
+}
+
+// ── DELETE WORKOUT ─────────────────────────────────────
+function deleteWorkout(id) {
+  const history = loadHistory().filter(w => w.id !== id);
+  saveHistory(history);
+  renderHistory();
+}
+
+// ── CLEAR ALL HISTORY ──────────────────────────────────
+function clearAllHistory() {
+  if (!confirm('Delete all saved workout history?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  renderHistory();
+  addLog('All history cleared.', 'err');
+}
+
+// ── RENDER HISTORY ─────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('workout-list');
+  const history = loadHistory();
+  if (history.length===0) { list.innerHTML='<span class="no-history">No saved workouts yet.</span>'; return; }
+
+  list.innerHTML = history.map(w => `
+    <div class="workout-item">
+      <div class="workout-item-hdr">
+        <span class="workout-date">${w.date}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="workout-tag">${w.totalSets} sets · ${w.totalReps} reps</span>
+          <button class="del-workout" onclick="deleteWorkout(${w.id})" title="Delete">✕</button>
+        </div>
+      </div>
+      <div class="workout-stats">
+        <span class="wstat">Sets: <strong>${w.totalSets}</strong></span>
+        <span class="wstat">Total reps: <strong>${w.totalReps}</strong></span>
+        <span class="wstat">Avg/set: <strong>${(w.totalReps/w.totalSets).toFixed(1)}</strong></span>
+      </div>
+      <div class="sets-inline">
+        ${w.sets.map(s => `<div class="set-pill">Set ${s.set} <span>${s.reps}</span></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── EXPORT CSV ─────────────────────────────────────────
+function exportCSV() {
+  const history = loadHistory();
+  if (history.length===0) { addLog('No history to export.', 'err'); return; }
+
+  let csv = 'Date,Set,Reps,Total Sets,Total Reps,Avg Reps/Set,ThreshUp,ThreshDown\n';
+  history.forEach(w => {
+    w.sets.forEach(s => {
+      csv += `"${w.date}",${s.set},${s.reps},${w.totalSets},${w.totalReps},${(w.totalReps/w.totalSets).toFixed(2)},${w.threshUp},${w.threshDown}\n`;
+    });
+  });
+
+  const blob = new Blob([csv], { type:'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'curl_workouts_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  addLog('CSV exported!', 'ok');
+}
+
+// ── THRESHOLDS ─────────────────────────────────────────
+function updateThresh() {
+  threshUp   = parseFloat(document.getElementById('thresh-up').value);
+  threshDown = parseFloat(document.getElementById('thresh-down').value);
+  document.getElementById('thresh-up-val').textContent   = threshUp.toFixed(1);
+  document.getElementById('thresh-down-val').textContent = threshDown.toFixed(1);
+  motionChart.data.datasets[1].data = Array(MAX_POINTS).fill(threshUp);
+  motionChart.data.datasets[2].data = Array(MAX_POINTS).fill(threshDown);
+  motionChart.update('none');
+}
+
+// ── DATA UPDATE ────────────────────────────────────────
+function updateUI(d) {
+  const ay = d.ay;
+  document.getElementById('val-ay').textContent = ay.toFixed(3);
+  document.getElementById('val-az').textContent = d.az.toFixed(3);
+  accelData.push(ay);
+  if (accelData.length > MAX_POINTS) accelData.shift();
+  motionChart.data.datasets[0].data = [...accelData];
+  motionChart.data.labels.push('');
+  if (motionChart.data.labels.length > MAX_POINTS) motionChart.data.labels.shift();
+  motionChart.update('none');
+  detectCurl(ay);
+}
+
+// ── SERIAL ─────────────────────────────────────────────
+function addLog(msg, cls='') {
+  const log = document.getElementById('log');
+  const p = document.createElement('p');
+  if (cls) p.className = cls;
+  p.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  log.appendChild(p);
+  if (log.children.length > 60) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setStatus(connected, text) {
+  isConnected = connected;
+  document.getElementById('dot').className = 'dot' + (connected ? ' on' : '');
+  document.getElementById('status-text').textContent = text;
+}
+
+async function toggleConnection() { isConnected ? await disconnect() : await connect(); }
+
+async function connect() {
+  if (!('serial' in navigator)) { document.getElementById('no-serial-warning').style.display='block'; return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate:115200 });
+    setStatus(true, 'Connected · 115200 baud');
+    addLog('Connected. Ready to count reps!', 'ok');
+    readLoop();
+  } catch(e) { addLog('Connection failed: ' + e.message, 'err'); }
+}
+
+async function disconnect() {
+  try { if (reader) { await reader.cancel(); reader=null; } if (port) { await port.close(); port=null; } } catch(e) {}
+  setStatus(false, 'Disconnected');
+  addLog('Disconnected.', 'err');
+}
+
+async function readLoop() {
+  const decoder = new TextDecoderStream();
+  port.readable.pipeTo(decoder.writable);
+  reader = decoder.readable.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let nl;
+      while ((nl = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl+1);
+        if (!line) continue;
+        try {
+          const d = JSON.parse(line);
+          if (d.error)  { addLog('Sensor: '+d.error, 'err'); continue; }
+          if (d.status) { addLog(d.status, 'ok'); continue; }
+          if (typeof d.ay !== 'undefined') updateUI(d);
+        } catch(e) {}
+      }
+    }
+  } catch(e) { if (isConnected) addLog('Read error: '+e.message, 'err'); setStatus(false,'Disconnected'); }
+}
+
+// ── INIT ───────────────────────────────────────────────
+if (!('serial' in navigator)) document.getElementById('no-serial-warning').style.display='block';
+renderHistory();
+</script>
+</body>
+</html>
